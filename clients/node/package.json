@@ -1,0 +1,16 @@
+{
+  "name": "@integration-observability/node",
+  "version": "0.1.0",
+  "description": "Send telemetry to the Integration Observability Platform. Zero dependencies.",
+  "main": "dist/observability.js",
+  "types": "dist/observability.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

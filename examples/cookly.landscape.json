@@ -1,0 +1,116 @@
+{
+  "organization": "Cookly",
+  "systems": [
+    {
+      "name": "Cookly API",
+      "type": "API",
+      "criticality": "CRITICAL",
+      "description": "Fastify backend. Everything below hangs off it.",
+      "components": [
+        { "name": "Recipe Extraction", "type": "SERVICE" },
+        { "name": "Meal Scan", "type": "SERVICE" },
+        { "name": "Nutrition Estimate", "type": "SERVICE" },
+        { "name": "Recipe Tagging", "type": "SERVICE" },
+        { "name": "Shopping Categorize", "type": "SERVICE" },
+        { "name": "Bruno Assistant", "type": "SERVICE" },
+        { "name": "Payments", "type": "SERVICE" },
+        { "name": "Email Sender", "type": "SERVICE" },
+        { "name": "Object Storage Client", "type": "SERVICE" },
+        { "name": "Push Notifications", "type": "SERVICE" },
+        { "name": "Subscription Sync", "type": "SERVICE" },
+        { "name": "Cache Client", "type": "SERVICE" },
+        { "name": "Prisma Client", "type": "REPOSITORY" }
+      ]
+    },
+    {
+      "name": "Cookly Postgres",
+      "type": "DATABASE",
+      "criticality": "CRITICAL",
+      "components": [{ "name": "Primary Database", "type": "DATABASE" }]
+    },
+    {
+      "name": "Cookly Redis",
+      "type": "DATABASE",
+      "criticality": "HIGH",
+      "description": "Cache, list sync and rate limiting.",
+      "components": [{ "name": "Redis", "type": "DATABASE" }]
+    },
+    {
+      "name": "OpenAI",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "CRITICAL",
+      "components": [{ "name": "Chat Completions", "type": "API" }]
+    },
+    {
+      "name": "Stripe",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "CRITICAL",
+      "components": [{ "name": "Stripe API", "type": "API" }]
+    },
+    {
+      "name": "Resend",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "MEDIUM",
+      "components": [{ "name": "Email API", "type": "API" }]
+    },
+    {
+      "name": "AWS S3",
+      "type": "FILE_SERVICE",
+      "criticality": "HIGH",
+      "components": [{ "name": "Object Storage", "type": "API" }]
+    },
+    {
+      "name": "Expo Push",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "MEDIUM",
+      "components": [{ "name": "Push API", "type": "API" }]
+    },
+    {
+      "name": "RevenueCat",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "HIGH",
+      "components": [{ "name": "Subscriber API", "type": "API" }]
+    }
+  ],
+  "integrations": [
+    { "name": "Recipe Extraction to OpenAI", "constant": "RECIPE_EXTRACTION_OPENAI",
+      "from": "Cookly API/Recipe Extraction", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "CRITICAL" },
+    { "name": "Meal Scan to OpenAI", "constant": "MEAL_SCAN_OPENAI",
+      "from": "Cookly API/Meal Scan", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Nutrition Estimate to OpenAI", "constant": "NUTRITION_ESTIMATE_OPENAI",
+      "from": "Cookly API/Nutrition Estimate", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "MEDIUM" },
+    { "name": "Recipe Tagging to OpenAI", "constant": "RECIPE_TAGGING_OPENAI",
+      "from": "Cookly API/Recipe Tagging", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "LOW" },
+    { "name": "Shopping Categorize to OpenAI", "constant": "SHOPPING_CATEGORIZE_OPENAI",
+      "from": "Cookly API/Shopping Categorize", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "MEDIUM" },
+    { "name": "Bruno to OpenAI", "constant": "BRUNO_OPENAI",
+      "from": "Cookly API/Bruno Assistant", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Payments to Stripe", "constant": "PAYMENTS_STRIPE",
+      "from": "Cookly API/Payments", "to": "Stripe/Stripe API",
+      "type": "REST_API", "criticality": "CRITICAL" },
+    { "name": "Email to Resend", "constant": "EMAIL_RESEND",
+      "from": "Cookly API/Email Sender", "to": "Resend/Email API",
+      "type": "REST_API", "criticality": "MEDIUM" },
+    { "name": "Uploads to S3", "constant": "UPLOADS_S3",
+      "from": "Cookly API/Object Storage Client", "to": "AWS S3/Object Storage",
+      "type": "FILE", "criticality": "HIGH" },
+    { "name": "Push to Expo", "constant": "PUSH_EXPO",
+      "from": "Cookly API/Push Notifications", "to": "Expo Push/Push API",
+      "type": "REST_API", "criticality": "MEDIUM" },
+    { "name": "Subscriptions to RevenueCat", "constant": "SUBSCRIPTIONS_REVENUECAT",
+      "from": "Cookly API/Subscription Sync", "to": "RevenueCat/Subscriber API",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Cache to Redis", "constant": "CACHE_REDIS",
+      "from": "Cookly API/Cache Client", "to": "Cookly Redis/Redis",
+      "type": "INTERNAL", "criticality": "HIGH" },
+    { "name": "Prisma to Postgres", "constant": "PRISMA_POSTGRES",
+      "from": "Cookly API/Prisma Client", "to": "Cookly Postgres/Primary Database",
+      "type": "SQL", "criticality": "CRITICAL" }
+  ]
+}
