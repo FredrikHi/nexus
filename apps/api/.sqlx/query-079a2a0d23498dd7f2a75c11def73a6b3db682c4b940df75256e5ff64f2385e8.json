@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             trace_id AS \"trace_id!\",\n             min(occurred_at) AS \"started_at!\",\n             max(occurred_at) AS \"ended_at!\",\n             (EXTRACT(EPOCH FROM (max(occurred_at) - min(occurred_at))) * 1000)::float8\n               AS \"elapsed_ms!\",\n             count(*) AS \"span_count!\",\n             count(DISTINCT integration_id) AS \"integration_count!\",\n             count(*) FILTER (WHERE status IN ('FAILURE','TIMEOUT')) AS \"error_count!\",\n             CASE\n               WHEN count(*) FILTER (WHERE status = 'FAILURE')  > 0 THEN 'FAILURE'\n               WHEN count(*) FILTER (WHERE status = 'TIMEOUT')  > 0 THEN 'TIMEOUT'\n               WHEN count(*) FILTER (WHERE status = 'REJECTED') > 0 THEN 'REJECTED'\n               ELSE 'SUCCESS'\n             END AS \"status!\"\n           FROM telemetry_events\n           WHERE organization_id = $1 AND trace_id = $2\n           GROUP BY trace_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trace_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "started_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "ended_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "elapsed_ms!",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "span_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "integration_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "error_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "status!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "079a2a0d23498dd7f2a75c11def73a6b3db682c4b940df75256e5ff64f2385e8"
+}

@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, organization_id, integration_id, environment_id, occurred_at,\n                  status, duration_ms, trace_id, operation, status_code,\n                  error_type, error_message, payload_bytes, metadata, received_at\n           FROM telemetry_events\n           WHERE organization_id = $1 AND trace_id = $2\n           ORDER BY occurred_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "integration_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "environment_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "occurred_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "duration_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "trace_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "operation",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "status_code",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "error_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "error_message",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "payload_bytes",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 14,
+        "name": "received_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "8a603560fa31531c0226ea1082f8f76bf8f056e96be2fc461b4ee37982e16291"
+}

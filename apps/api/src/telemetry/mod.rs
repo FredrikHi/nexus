@@ -13,6 +13,10 @@ use sqlx::PgPool;
 use utoipa::OpenApi;
 
 use crate::error::ApiError;
+
+// A span in a trace is a telemetry event, so the traces feature reads these
+// types rather than defining near-duplicates of them.
+pub use model::{TelemetryEvent, TelemetryEventRow, TelemetryStatus};
 use crate::AppState;
 
 /// Creates the monthly partitions around now. Called once at startup so ingest

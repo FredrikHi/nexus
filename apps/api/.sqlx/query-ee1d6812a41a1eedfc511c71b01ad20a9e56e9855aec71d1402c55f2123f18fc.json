@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO telemetry_events\n             (organization_id, integration_id, occurred_at, status, duration_ms, trace_id)\n           VALUES ($1,$2,$3,$4,$5,$6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Text",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ee1d6812a41a1eedfc511c71b01ad20a9e56e9855aec71d1402c55f2123f18fc"
+}

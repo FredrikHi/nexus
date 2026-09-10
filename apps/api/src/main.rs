@@ -10,6 +10,7 @@ mod integrations;
 mod openapi;
 mod systems;
 mod telemetry;
+mod traces;
 mod util;
 
 use std::net::SocketAddr;
@@ -83,6 +84,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(integrations::router())
         .merge(api_keys::router())
         .merge(telemetry::router())
+        .merge(traces::router())
         .merge(integration_types::router())
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so

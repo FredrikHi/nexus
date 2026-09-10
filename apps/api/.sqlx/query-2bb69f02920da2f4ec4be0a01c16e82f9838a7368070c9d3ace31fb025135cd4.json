@@ -1,0 +1,69 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             trace_id AS \"trace_id!\",\n             min(occurred_at) AS \"started_at!\",\n             max(occurred_at) AS \"ended_at!\",\n             (EXTRACT(EPOCH FROM (max(occurred_at) - min(occurred_at))) * 1000)::float8\n               AS \"elapsed_ms!\",\n             count(*) AS \"span_count!\",\n             count(DISTINCT integration_id) AS \"integration_count!\",\n             count(*) FILTER (WHERE status IN ('FAILURE','TIMEOUT')) AS \"error_count!\",\n             CASE\n               WHEN count(*) FILTER (WHERE status = 'FAILURE')  > 0 THEN 'FAILURE'\n               WHEN count(*) FILTER (WHERE status = 'TIMEOUT')  > 0 THEN 'TIMEOUT'\n               WHEN count(*) FILTER (WHERE status = 'REJECTED') > 0 THEN 'REJECTED'\n               ELSE 'SUCCESS'\n             END AS \"status!\"\n           FROM telemetry_events\n           WHERE organization_id = $1\n             AND trace_id IS NOT NULL\n             AND ($2::uuid IS NULL OR trace_id IN (\n                   SELECT trace_id FROM telemetry_events\n                   WHERE organization_id = $1\n                     AND integration_id = $2\n                     AND trace_id IS NOT NULL))\n             AND ($3::timestamptz IS NULL OR occurred_at >= $3)\n             AND ($4::timestamptz IS NULL OR occurred_at < $4)\n           GROUP BY trace_id\n           HAVING $5::bool IS NOT TRUE\n               OR count(*) FILTER (WHERE status IN ('FAILURE','TIMEOUT')) > 0\n           ORDER BY min(occurred_at) DESC\n           LIMIT $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "trace_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "started_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 2,
+        "name": "ended_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "elapsed_ms!",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "span_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "integration_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "error_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "status!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "2bb69f02920da2f4ec4be0a01c16e82f9838a7368070c9d3ace31fb025135cd4"
+}
