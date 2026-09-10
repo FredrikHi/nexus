@@ -120,9 +120,16 @@ async fn evaluate_and_prune(
     last_prune: &mut Option<Instant>,
 ) -> anyhow::Result<String> {
     let result = service::evaluate_default_org(db).await?;
+
+    // Reconcile immediately, in the same locked pass. Incidents are derived
+    // from the health state this just wrote, so doing it here means the two
+    // never sit out of step for a whole interval.
+    let incidents = crate::incidents::reconcile_default_org(db).await?;
+
     let mut summary = format!(
-        "evaluated {} integrations, {} changed status",
-        result.evaluated, result.changed
+        "evaluated {} integrations, {} changed status; incidents +{} ~{} -{}",
+        result.evaluated, result.changed,
+        incidents.opened, incidents.escalated, incidents.resolved
     );
 
     let due = last_prune.map_or(true, |t| t.elapsed() >= PRUNE_EVERY);

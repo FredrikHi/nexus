@@ -1,0 +1,99 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, organization_id, integration_id, status, severity, title, summary,\n                  opened_at, acknowledged_at, acknowledged_by, resolved_at,\n                  opened_error_rate, opened_event_count\n           FROM incidents\n           WHERE organization_id = $1\n             AND ($2::uuid IS NULL OR integration_id = $2)\n             AND ($3::text IS NULL OR severity = $3)\n             AND ($4::text IS NULL OR status = $4)\n             AND ($5::bool IS NOT TRUE OR resolved_at IS NULL)\n           ORDER BY resolved_at IS NOT NULL, opened_at DESC\n           LIMIT $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "integration_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "severity",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "title",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "summary",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "opened_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "acknowledged_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "acknowledged_by",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "resolved_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "opened_error_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 12,
+        "name": "opened_event_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5ea549ba68f20cc4927bf1d4a6422a789964acddd48f63d5888f358c3f272cc5"
+}

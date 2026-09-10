@@ -5,6 +5,7 @@ mod environments;
 mod error;
 mod extract;
 mod health;
+mod incidents;
 mod integration_health;
 mod integration_types;
 mod integrations;
@@ -102,6 +103,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(telemetry::router())
         .merge(traces::router())
         .merge(integration_health::router())
+        .merge(incidents::router())
         .merge(integration_types::router())
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so

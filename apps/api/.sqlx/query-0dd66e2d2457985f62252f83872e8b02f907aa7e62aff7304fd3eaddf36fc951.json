@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE incidents\n           SET status = 'RESOLVED', resolved_at = now(), summary = $2\n           WHERE id = $1 AND resolved_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0dd66e2d2457985f62252f83872e8b02f907aa7e62aff7304fd3eaddf36fc951"
+}

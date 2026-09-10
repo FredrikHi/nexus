@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO telemetry_events\n             (organization_id, integration_id, occurred_at, status, duration_ms)\n           SELECT $1, $2,\n                  now() - make_interval(secs => g * 0.001),\n                  CASE WHEN g < $3 THEN 'FAILURE' ELSE 'SUCCESS' END,\n                  50\n           FROM generate_series(0, $4 - 1) AS g",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "599db722608e0f4162656d5a91cff40af908450a413d15962de231554b525ae0"
+}

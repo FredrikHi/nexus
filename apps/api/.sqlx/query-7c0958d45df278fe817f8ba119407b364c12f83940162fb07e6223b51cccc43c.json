@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE incidents\n           SET status = 'ACKNOWLEDGED', acknowledged_at = now(), acknowledged_by = $3\n           WHERE id = $1 AND organization_id = $2\n             AND resolved_at IS NULL AND acknowledged_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7c0958d45df278fe817f8ba119407b364c12f83940162fb07e6223b51cccc43c"
+}

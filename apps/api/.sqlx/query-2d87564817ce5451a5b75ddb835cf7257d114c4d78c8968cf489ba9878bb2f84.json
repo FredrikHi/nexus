@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             h.integration_id  AS \"integration_id!\",\n             h.organization_id AS \"organization_id!\",\n             i.name            AS \"integration_name!\",\n             h.status          AS \"health_status!\",\n             i.criticality     AS \"criticality!\",\n             h.reason          AS \"reason!\",\n             h.error_rate      AS \"error_rate!\",\n             h.event_count     AS \"event_count!\",\n             inc.id            AS \"open_incident_id?\",\n             inc.severity      AS \"open_incident_severity?\"\n           FROM integration_health h\n           JOIN integrations i ON i.id = h.integration_id\n           LEFT JOIN incidents inc\n                  ON inc.integration_id = h.integration_id\n                 AND inc.resolved_at IS NULL\n           WHERE h.organization_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "integration_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "integration_name!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "health_status!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "criticality!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "reason!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "error_rate!",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 7,
+        "name": "event_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "open_incident_id?",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 9,
+        "name": "open_incident_severity?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2d87564817ce5451a5b75ddb835cf7257d114c4d78c8968cf489ba9878bb2f84"
+}

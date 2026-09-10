@@ -29,6 +29,7 @@ use utoipa::OpenApi;
         (name = "Telemetry", description = "Recorded calls across integrations: ingest and query."),
         (name = "Traces", description = "Correlated flows across integrations, derived from telemetry."),
         (name = "Integration health", description = "Per-integration health derived from telemetry on a schedule."),
+        (name = "Incidents", description = "Opened and resolved automatically from integration health."),
         (name = "API keys", description = "Credentials that authenticate telemetry ingestion."),
         (name = "Service health", description = "Liveness and readiness probes for the API process itself."),
     ),
@@ -46,5 +47,6 @@ pub fn spec() -> utoipa::openapi::OpenApi {
     doc.merge(crate::telemetry::openapi());
     doc.merge(crate::traces::openapi());
     doc.merge(crate::integration_health::openapi());
+    doc.merge(crate::incidents::openapi());
     doc
 }
