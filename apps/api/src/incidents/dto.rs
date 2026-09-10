@@ -17,18 +17,11 @@ pub struct ListIncidentsQuery {
     pub limit: Option<i64>,
 }
 
-/// Request body for acknowledging an incident.
-///
-/// `actor` is free text until user authentication lands, at which point it
-/// comes from the token instead of the body.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct AcknowledgeIncident {
-    pub actor: String,
-}
-
 /// Request body for adding a note to an incident's timeline.
+///
+/// There is no `actor` field: who did this comes from the verified token, so a
+/// caller cannot attribute their note to somebody else.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct AddNote {
-    pub actor: String,
     pub message: String,
 }

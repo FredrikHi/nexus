@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO health_policies (organization_id, integration_id) VALUES ($1, NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a9d93270e23405f0d8dadee246c6569f8db3d84cc28cdda833d71daebb8408b"
+}

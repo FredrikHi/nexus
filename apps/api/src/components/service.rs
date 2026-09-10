@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::util::{default_org_id, slugify};
+use crate::util::slugify;
 
 use super::dto::{CreateComponent, UpdateComponent};
 use super::model::Component;
@@ -11,18 +11,25 @@ use super::repository;
 /// Lists components, optionally narrowed to a single system. Filtering by a
 /// system that does not exist yields an empty list rather than a 404: a list
 /// endpoint answers "what matches", and nothing matching is a valid answer.
-pub async fn list(db: &PgPool, system_id: Option<Uuid>) -> Result<Vec<Component>, ApiError> {
-    repository::list(db, default_org_id(), system_id).await
+pub async fn list(
+    db: &PgPool,
+    org_id: Uuid,
+    system_id: Option<Uuid>,
+) -> Result<Vec<Component>, ApiError> {
+    repository::list(db, org_id, system_id).await
 }
 
-pub async fn get(db: &PgPool, id: Uuid) -> Result<Component, ApiError> {
-    repository::find_by_id(db, default_org_id(), id)
+pub async fn get(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<Component, ApiError> {
+    repository::find_by_id(db, org_id, id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("component {id} not found")))
 }
 
-pub async fn create(db: &PgPool, input: CreateComponent) -> Result<Component, ApiError> {
-    let org_id = default_org_id();
+pub async fn create(
+    db: &PgPool,
+    org_id: Uuid,
+    input: CreateComponent,
+) -> Result<Component, ApiError> {
 
     let name = input.name.trim();
     if name.is_empty() {
@@ -61,9 +68,14 @@ pub async fn create(db: &PgPool, input: CreateComponent) -> Result<Component, Ap
     repository::insert(db, name, &slug, &input, metadata).await
 }
 
-pub async fn update(db: &PgPool, id: Uuid, input: UpdateComponent) -> Result<Component, ApiError> {
+pub async fn update(
+    db: &PgPool,
+    org_id: Uuid,
+    id: Uuid,
+    input: UpdateComponent,
+) -> Result<Component, ApiError> {
     // 404 up front, so a PATCH against a missing id is unambiguous.
-    get(db, id).await?;
+    get(db, org_id, id).await?;
 
     if let Some(name) = input.name.as_deref() {
         if name.trim().is_empty() {
@@ -84,10 +96,10 @@ pub async fn update(db: &PgPool, id: Uuid, input: UpdateComponent) -> Result<Com
         .ok_or_else(|| ApiError::NotFound(format!("component {id} not found")))
 }
 
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<(), ApiError> {
+pub async fn delete(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<(), ApiError> {
     // Scope the existence check to the organization before deleting, so a
     // component in another org reads as 404 rather than being removed.
-    get(db, id).await?;
+    get(db, org_id, id).await?;
 
     if repository::delete(db, id).await? {
         Ok(())

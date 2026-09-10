@@ -1,0 +1,21 @@
+{
+  "name": "integration-observability-auth",
+  "private": true,
+  "type": "module",
+  "description": "Identity for the Integration Observability Platform. Owns sign-in and nothing else: organizations and membership live in the Rust API.",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/index.ts",
+    "start": "node --env-file-if-exists=.env --import tsx src/index.ts",
+    "migrate": "npx --yes @better-auth/cli@latest migrate --y"
+  },
+  "dependencies": {
+    "better-auth": "^1.2.7",
+    "pg": "^8.13.1",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2"
+  }
+}

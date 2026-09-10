@@ -22,6 +22,7 @@ use utoipa::OpenApi;
         crate::environments::list_environments_handler,
     ),
     tags(
+        (name = "Account", description = "Who you are, the organizations you belong to, and who else is in them."),
         (name = "Systems", description = "Deployable units and external services."),
         (name = "Components", description = "The parts inside a system. Integrations connect these, not systems."),
         (name = "Integrations", description = "Directed edges between two components."),
@@ -48,5 +49,6 @@ pub fn spec() -> utoipa::openapi::OpenApi {
     doc.merge(crate::traces::openapi());
     doc.merge(crate::integration_health::openapi());
     doc.merge(crate::incidents::openapi());
+    doc.merge(crate::organizations::openapi());
     doc
 }

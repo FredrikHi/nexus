@@ -1,9 +1,11 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, Json};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::auth::OrgContext;
+use crate::error::ApiError;
 use crate::AppState;
 
 /// One row of the `environments` table.
@@ -28,13 +30,18 @@ pub struct Environment {
 /// `query_as!` is *compile-time*-checked: the statement is verified against a
 /// real Postgres schema while the crate builds, so a renamed column is a build
 /// error rather than a runtime 500. The `?` propagates any `sqlx::Error`.
-pub async fn list_environments(pool: &sqlx::PgPool) -> Result<Vec<Environment>, sqlx::Error> {
+pub async fn list_environments(
+    pool: &sqlx::PgPool,
+    org_id: uuid::Uuid,
+) -> Result<Vec<Environment>, sqlx::Error> {
     let environments = sqlx::query_as!(
         Environment,
         r#"SELECT id, organization_id, name, slug, description,
                   is_production, created_at, updated_at
            FROM environments
-           ORDER BY is_production, name"#
+           WHERE organization_id = $1
+           ORDER BY is_production, name"#,
+        org_id
     )
     .fetch_all(pool)
     .await?;
@@ -48,18 +55,16 @@ pub async fn list_environments(pool: &sqlx::PgPool) -> Result<Vec<Environment>, 
     get,
     path = "/api/v1/environments",
     tag = "Reference data",
-    responses((status = 200, description = "All environments", body = Vec<Environment>))
+    responses((status = 200, description = "Environments in the active organization", body = Vec<Environment>))
 )]
 pub async fn list_environments_handler(
     State(state): State<AppState>,
-) -> Result<Json<Vec<Environment>>, StatusCode> {
-    match list_environments(&state.db).await {
-        Ok(environments) => Ok(Json(environments)),
-        Err(err) => {
-            tracing::error!(error = %err, "failed to list environments");
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
-        }
-    }
+    ctx: OrgContext,
+) -> Result<Json<Vec<Environment>>, ApiError> {
+    // Environments belong to an organization. Listing them unscoped, as this
+    // did while the platform was single-tenant, would show every tenant's.
+    let environments = list_environments(&state.db, ctx.organization_id).await?;
+    Ok(Json(environments))
 }
 
 #[cfg(test)]
@@ -71,7 +76,8 @@ mod tests {
     /// drops the database afterwards. Think test containers, but built in.
     #[sqlx::test]
     async fn seed_creates_the_four_environments(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        let environments = list_environments(&pool).await?;
+        let default_org = uuid::Uuid::from_u128(1);
+        let environments = list_environments(&pool, default_org).await?;
 
         assert_eq!(environments.len(), 4);
         assert!(environments

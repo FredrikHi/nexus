@@ -2,7 +2,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::util::{default_org_id, slugify};
+use crate::util::slugify;
 
 use super::dto::{CreateIntegration, UpdateIntegration};
 use super::model::Integration;
@@ -10,14 +10,15 @@ use super::repository;
 
 pub async fn list(
     db: &PgPool,
+    org_id: Uuid,
     environment_id: Option<Uuid>,
     component_id: Option<Uuid>,
 ) -> Result<Vec<Integration>, ApiError> {
-    repository::list(db, default_org_id(), environment_id, component_id).await
+    repository::list(db, org_id, environment_id, component_id).await
 }
 
-pub async fn get(db: &PgPool, id: Uuid) -> Result<Integration, ApiError> {
-    repository::find_by_id(db, default_org_id(), id)
+pub async fn get(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<Integration, ApiError> {
+    repository::find_by_id(db, org_id, id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("integration {id} not found")))
 }
@@ -86,8 +87,11 @@ async fn validate_references(
     }
 }
 
-pub async fn create(db: &PgPool, input: CreateIntegration) -> Result<Integration, ApiError> {
-    let org_id = default_org_id();
+pub async fn create(
+    db: &PgPool,
+    org_id: Uuid,
+    input: CreateIntegration,
+) -> Result<Integration, ApiError> {
 
     let name = input.name.trim();
     if name.is_empty() {
@@ -124,13 +128,17 @@ pub async fn create(db: &PgPool, input: CreateIntegration) -> Result<Integration
     repository::insert(db, org_id, name, &slug, &input, metadata).await
 }
 
-pub async fn update(db: &PgPool, id: Uuid, input: UpdateIntegration) -> Result<Integration, ApiError> {
-    let org_id = default_org_id();
+pub async fn update(
+    db: &PgPool,
+    org_id: Uuid,
+    id: Uuid,
+    input: UpdateIntegration,
+) -> Result<Integration, ApiError> {
 
     // 404 up front, and the current row doubles as the base for the checks
     // below: a PATCH that changes only one endpoint still has to be validated
     // against the endpoint it is keeping.
-    let current = get(db, id).await?;
+    let current = get(db, org_id, id).await?;
 
     if let Some(name) = input.name.as_deref() {
         if name.trim().is_empty() {
@@ -172,10 +180,10 @@ pub async fn update(db: &PgPool, id: Uuid, input: UpdateIntegration) -> Result<I
         .ok_or_else(|| ApiError::NotFound(format!("integration {id} not found")))
 }
 
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<(), ApiError> {
+pub async fn delete(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<(), ApiError> {
     // Scope the existence check to the organization first, so an integration
     // in another org reads as 404 rather than being removed.
-    get(db, id).await?;
+    get(db, org_id, id).await?;
 
     if repository::delete(db, id).await? {
         Ok(())

@@ -5,7 +5,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::util::default_org_id;
 
 use super::evaluator;
 use super::model::{
@@ -50,22 +49,37 @@ pub async fn evaluate(db: &PgPool, org_id: Uuid) -> Result<EvaluationResult, Api
     Ok(EvaluationResult { evaluated: inputs.len(), changed })
 }
 
-/// Evaluates the default organization. What the worker and the manual trigger
-/// both call; it becomes per-tenant once authentication lands.
-pub async fn evaluate_default_org(db: &PgPool) -> Result<EvaluationResult, ApiError> {
-    evaluate(db, default_org_id()).await
+/// Evaluates every organization on the platform.
+///
+/// The worker sweeps all tenants rather than one: a hosted deployment has
+/// many, and health that is only computed for whoever happens to be looking is
+/// not health at all.
+pub async fn evaluate_all(db: &PgPool) -> Result<EvaluationResult, ApiError> {
+    let mut total = EvaluationResult { evaluated: 0, changed: 0 };
+
+    for org_id in crate::organizations::all_ids(db).await? {
+        let result = evaluate(db, org_id).await?;
+        total.evaluated += result.evaluated;
+        total.changed += result.changed;
+    }
+
+    Ok(total)
 }
 
-pub async fn list(db: &PgPool) -> Result<Vec<IntegrationHealth>, ApiError> {
-    repository::list(db, default_org_id())
+pub async fn list(db: &PgPool, org_id: Uuid) -> Result<Vec<IntegrationHealth>, ApiError> {
+    repository::list(db, org_id)
         .await?
         .into_iter()
         .map(|r| r.into_domain())
         .collect()
 }
 
-pub async fn get(db: &PgPool, integration_id: Uuid) -> Result<IntegrationHealth, ApiError> {
-    repository::find(db, default_org_id(), integration_id)
+pub async fn get(
+    db: &PgPool,
+    org_id: Uuid,
+    integration_id: Uuid,
+) -> Result<IntegrationHealth, ApiError> {
+    repository::find(db, org_id, integration_id)
         .await?
         .ok_or_else(|| {
             ApiError::NotFound(format!(
@@ -78,12 +92,13 @@ pub async fn get(db: &PgPool, integration_id: Uuid) -> Result<IntegrationHealth,
 
 pub async fn transitions(
     db: &PgPool,
+    org_id: Uuid,
     integration_id: Uuid,
     limit: Option<i64>,
 ) -> Result<Vec<HealthTransition>, ApiError> {
     let limit = limit.unwrap_or(DEFAULT_TRANSITION_LIMIT).clamp(1, MAX_TRANSITION_LIMIT);
 
-    repository::transitions(db, default_org_id(), integration_id, limit)
+    repository::transitions(db, org_id, integration_id, limit)
         .await?
         .into_iter()
         .map(|r| r.into_domain())
@@ -91,7 +106,10 @@ pub async fn transitions(
 }
 
 /// Counts of each status, for a dashboard header.
-pub async fn overview(db: &PgPool) -> Result<HashMap<&'static str, usize>, ApiError> {
+pub async fn overview(
+    db: &PgPool,
+    org_id: Uuid,
+) -> Result<HashMap<&'static str, usize>, ApiError> {
     let mut counts: HashMap<&'static str, usize> = HashMap::new();
     for status in [
         HealthStatus::Healthy,
@@ -102,7 +120,7 @@ pub async fn overview(db: &PgPool) -> Result<HashMap<&'static str, usize>, ApiEr
         counts.insert(status.as_str(), 0);
     }
 
-    for health in list(db).await? {
+    for health in list(db, org_id).await? {
         *counts.entry(health.status.as_str()).or_insert(0) += 1;
     }
 

@@ -1,11 +1,12 @@
 use axum::extract::State;
 use uuid::Uuid;
 
+use crate::auth::OrgContext;
 use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Path, Query};
 use crate::AppState;
 
-use super::dto::{AcknowledgeIncident, AddNote, ListIncidentsQuery};
+use super::dto::{AddNote, ListIncidentsQuery};
 use super::model::{Incident, IncidentDetail, ReconcileResult};
 use super::service;
 
@@ -22,9 +23,10 @@ use super::service;
 )]
 pub async fn list(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Query(params): Query<ListIncidentsQuery>,
 ) -> Result<Json<Vec<Incident>>, ApiError> {
-    Ok(Json(service::list(&state.db, params).await?))
+    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
 }
 
 #[utoipa::path(
@@ -40,9 +42,10 @@ pub async fn list(
 )]
 pub async fn get(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<IncidentDetail>, ApiError> {
-    Ok(Json(service::get(&state.db, id).await?))
+    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
 }
 
 #[utoipa::path(
@@ -50,7 +53,6 @@ pub async fn get(
     path = "/api/v1/incidents/{id}/acknowledge",
     tag = "Incidents",
     params(("id" = Uuid, Path, description = "Incident id")),
-    request_body = AcknowledgeIncident,
     responses(
         (status = 200, description = "Acknowledged. Still open: only recovery resolves it.",
          body = IncidentDetail),
@@ -60,10 +62,21 @@ pub async fn get(
 )]
 pub async fn acknowledge(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
-    Json(body): Json<AcknowledgeIncident>,
 ) -> Result<Json<IncidentDetail>, ApiError> {
-    Ok(Json(service::acknowledge(&state.db, id, body).await?))
+    // Acknowledging is an operator action, not a passive read. Who did it
+    // comes from the token, so it cannot be attributed to somebody else.
+    ctx.require_write()?;
+    Ok(Json(
+        service::acknowledge(
+            &state.db,
+            ctx.organization_id,
+            id,
+            &ctx.identity.display_name,
+        )
+        .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -80,10 +93,21 @@ pub async fn acknowledge(
 )]
 pub async fn add_note(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
     Json(body): Json<AddNote>,
 ) -> Result<Json<IncidentDetail>, ApiError> {
-    Ok(Json(service::add_note(&state.db, id, body).await?))
+    ctx.require_write()?;
+    Ok(Json(
+        service::add_note(
+            &state.db,
+            ctx.organization_id,
+            id,
+            &ctx.identity.display_name,
+            body,
+        )
+        .await?,
+    ))
 }
 
 #[utoipa::path(
@@ -97,8 +121,10 @@ pub async fn add_note(
 )]
 pub async fn reconcile(
     State(state): State<AppState>,
+    ctx: OrgContext,
 ) -> Result<Json<ReconcileResult>, ApiError> {
-    // The same pass the worker runs after each evaluation. Idempotent, so
-    // calling it by hand is safe and useful for a dashboard refresh.
-    Ok(Json(service::reconcile_default_org(&state.db).await?))
+    // The same pass the worker runs after each evaluation, scoped to the
+    // caller's own tenant. Idempotent, so calling it by hand is safe.
+    ctx.require_write()?;
+    Ok(Json(service::reconcile(&state.db, ctx.organization_id).await?))
 }

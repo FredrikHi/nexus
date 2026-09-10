@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO organization_members (organization_id, user_id, role)\n           VALUES ($1,$2,$3)\n           ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fd2f8b203e52f502ec5e195807d4f0ab22b0b2306eccc242c109fc2a3877c38c"
+}

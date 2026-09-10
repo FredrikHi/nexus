@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE systems SET\n             name              = COALESCE($2, name),\n             slug              = COALESCE($3, slug),\n             description       = COALESCE($4, description),\n             system_type       = COALESCE($5, system_type),\n             owner_team_id     = COALESCE($6, owner_team_id),\n             documentation_url = COALESCE($7, documentation_url),\n             repository_url    = COALESCE($8, repository_url),\n             criticality       = COALESCE($9, criticality),\n             lifecycle_status  = COALESCE($10, lifecycle_status),\n             metadata          = COALESCE($11, metadata)\n           WHERE id = $1\n           RETURNING id, organization_id, name, slug, description, system_type,\n                     owner_team_id, documentation_url, repository_url, criticality,\n                     lifecycle_status, metadata, created_at, updated_at",
+  "query": "UPDATE systems SET\n             name              = COALESCE($2, name),\n             slug              = COALESCE($3, slug),\n             description       = COALESCE($4, description),\n             system_type       = COALESCE($5, system_type),\n             owner_team_id     = COALESCE($6, owner_team_id),\n             documentation_url = COALESCE($7, documentation_url),\n             repository_url    = COALESCE($8, repository_url),\n             criticality       = COALESCE($9, criticality),\n             lifecycle_status  = COALESCE($10, lifecycle_status),\n             metadata          = COALESCE($11, metadata)\n           WHERE id = $1 AND organization_id = $12\n           RETURNING id, organization_id, name, slug, description, system_type,\n                     owner_team_id, documentation_url, repository_url, criticality,\n                     lifecycle_status, metadata, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -86,7 +86,8 @@
         "Text",
         "Text",
         "Text",
-        "Jsonb"
+        "Jsonb",
+        "Uuid"
       ]
     },
     "nullable": [
@@ -106,5 +107,5 @@
       false
     ]
   },
-  "hash": "11a96ea409d212138fc9c6f6a5a41f11942b9112b2b6a74b2db4c97e40f14614"
+  "hash": "f07cc055624b3756bf76728d9175100da8b6838412680123946edd8e70de43a8"
 }

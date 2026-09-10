@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use uuid::Uuid;
 
+use crate::auth::OrgContext;
 use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Path};
 use crate::AppState;
@@ -19,8 +20,14 @@ use super::service;
          body = Vec<ApiKey>),
     )
 )]
-pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<ApiKey>>, ApiError> {
-    Ok(Json(service::list(&state.db).await?))
+pub async fn list(
+    State(state): State<AppState>,
+    ctx: OrgContext,
+) -> Result<Json<Vec<ApiKey>>, ApiError> {
+    // Keys can ingest on the organization's behalf, so listing them is an
+    // administrative act rather than an ordinary read.
+    ctx.require_admin()?;
+    Ok(Json(service::list(&state.db, ctx.organization_id).await?))
 }
 
 #[utoipa::path(
@@ -38,9 +45,11 @@ pub async fn list(State(state): State<AppState>) -> Result<Json<Vec<ApiKey>>, Ap
 )]
 pub async fn create(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Json(body): Json<CreateApiKey>,
 ) -> Result<(StatusCode, Json<CreatedApiKey>), ApiError> {
-    let created = service::create(&state.db, body).await?;
+    ctx.require_admin()?;
+    let created = service::create(&state.db, ctx.organization_id, body).await?;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -59,7 +68,9 @@ pub async fn create(
 )]
 pub async fn revoke(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<ApiKey>, ApiError> {
-    Ok(Json(service::revoke(&state.db, id).await?))
+    ctx.require_admin()?;
+    Ok(Json(service::revoke(&state.db, ctx.organization_id, id).await?))
 }

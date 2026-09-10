@@ -1,4 +1,5 @@
 mod api_keys;
+mod auth;
 mod components;
 mod domain;
 mod environments;
@@ -10,6 +11,7 @@ mod integration_health;
 mod integration_types;
 mod integrations;
 mod openapi;
+mod organizations;
 mod systems;
 mod telemetry;
 mod traces;
@@ -30,6 +32,14 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
+    /// Public keys of the auth service, fetched once and cached. Token
+    /// validation is local, so it costs no network round trip per request.
+    pub jwks: auth::JwksCache,
+    /// Who tokens must be issued by, and who they must be issued for. Both are
+    /// verified on every request: a valid signature from the right key is not
+    /// enough if the token was minted for a different application.
+    pub auth_issuer: String,
+    pub auth_audience: String,
 }
 
 #[tokio::main]
@@ -51,6 +61,16 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://postgres:postgres@localhost:5432/integration_observability".to_string()
     });
+    // Where the auth service publishes its public keys, and the issuer and
+    // audience every token must claim. Read once at startup like everything
+    // else, so changing them needs a restart.
+    let auth_issuer = std::env::var("AUTH_ISSUER")
+        .unwrap_or_else(|_| "http://localhost:3001".to_string());
+    let auth_audience = std::env::var("AUTH_AUDIENCE")
+        .unwrap_or_else(|_| "integration-observability-api".to_string());
+    let jwks_url = std::env::var("AUTH_JWKS_URL")
+        .unwrap_or_else(|_| format!("{auth_issuer}/api/auth/jwks"));
+
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
 
@@ -89,7 +109,12 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("health evaluation worker disabled");
     }
 
-    let state = AppState { db };
+    let state = AppState {
+        db,
+        jwks: auth::JwksCache::new(jwks_url),
+        auth_issuer,
+        auth_audience,
+    };
 
     // 4. The router: URL -> handler. This is your ASP.NET endpoint map.
     let app = Router::new()
@@ -104,6 +129,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(traces::router())
         .merge(integration_health::router())
         .merge(incidents::router())
+        .merge(organizations::router())
         .merge(integration_types::router())
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so

@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use uuid::Uuid;
 
+use crate::auth::OrgContext;
 use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Path, Query};
 use crate::AppState;
@@ -26,9 +27,10 @@ use super::service;
 )]
 pub async fn list(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Query(params): Query<ListComponentsQuery>,
 ) -> Result<Json<Vec<Component>>, ApiError> {
-    Ok(Json(service::list(&state.db, params.system_id).await?))
+    Ok(Json(service::list(&state.db, ctx.organization_id, params.system_id).await?))
 }
 
 #[utoipa::path(
@@ -44,9 +46,10 @@ pub async fn list(
 )]
 pub async fn get(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Component>, ApiError> {
-    Ok(Json(service::get(&state.db, id).await?))
+    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
 }
 
 #[utoipa::path(
@@ -64,9 +67,11 @@ pub async fn get(
 )]
 pub async fn create(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Json(body): Json<CreateComponent>,
 ) -> Result<(StatusCode, Json<Component>), ApiError> {
-    let created = service::create(&state.db, body).await?;
+    ctx.require_write()?;
+    let created = service::create(&state.db, ctx.organization_id, body).await?;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -86,10 +91,12 @@ pub async fn create(
 )]
 pub async fn update(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
     Json(body): Json<UpdateComponent>,
 ) -> Result<Json<Component>, ApiError> {
-    Ok(Json(service::update(&state.db, id, body).await?))
+    ctx.require_write()?;
+    Ok(Json(service::update(&state.db, ctx.organization_id, id, body).await?))
 }
 
 #[utoipa::path(
@@ -105,8 +112,10 @@ pub async fn update(
 )]
 pub async fn delete(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, ApiError> {
-    service::delete(&state.db, id).await?;
+    ctx.require_write()?;
+    service::delete(&state.db, ctx.organization_id, id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

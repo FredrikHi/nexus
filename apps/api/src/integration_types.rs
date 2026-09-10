@@ -13,6 +13,7 @@ use serde::Serialize;
 use utoipa::{OpenApi, ToSchema};
 use uuid::Uuid;
 
+use crate::auth::Authenticated;
 use crate::error::ApiError;
 use crate::extract::Json;
 use crate::AppState;
@@ -35,7 +36,13 @@ pub struct IntegrationType {
         (status = 200, description = "The integration type catalogue", body = Vec<IntegrationType>),
     )
 )]
-async fn list(State(state): State<AppState>) -> Result<Json<Vec<IntegrationType>>, ApiError> {
+async fn list(
+    State(state): State<AppState>,
+    // The catalogue is platform-wide rather than per-tenant, so it needs no
+    // organization. It still requires a signed-in caller: the shape of an
+    // installation is not public information.
+    _caller: Authenticated,
+) -> Result<Json<Vec<IntegrationType>>, ApiError> {
     let types = sqlx::query_as!(
         IntegrationType,
         r#"SELECT id, key, name, description, is_builtin, created_at

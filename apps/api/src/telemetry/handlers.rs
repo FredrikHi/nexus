@@ -2,6 +2,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 
 use crate::api_keys::ApiKeyAuth;
+use crate::auth::OrgContext;
 use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Query};
 use crate::AppState;
@@ -49,9 +50,10 @@ pub async fn ingest(
 )]
 pub async fn list(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Query(params): Query<ListTelemetryQuery>,
 ) -> Result<Json<Vec<TelemetryEvent>>, ApiError> {
-    Ok(Json(service::list(&state.db, params).await?))
+    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
 }
 
 #[utoipa::path(
@@ -68,7 +70,8 @@ pub async fn list(
 )]
 pub async fn summary(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Query(params): Query<SummaryQuery>,
 ) -> Result<Json<TelemetrySummary>, ApiError> {
-    Ok(Json(service::summary(&state.db, params).await?))
+    Ok(Json(service::summary(&state.db, ctx.organization_id, params).await?))
 }

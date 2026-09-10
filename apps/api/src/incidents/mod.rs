@@ -14,7 +14,7 @@ use utoipa::OpenApi;
 use crate::AppState;
 
 // The health worker runs this after each evaluation pass.
-pub use service::reconcile_default_org;
+pub use service::reconcile_all;
 
 pub fn router() -> Router<AppState> {
     Router::new()

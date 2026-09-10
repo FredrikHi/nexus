@@ -13,6 +13,9 @@ pub enum ApiError {
     NotFound(String),
     /// No usable credential was presented, or it is revoked or expired.
     Unauthorized(String),
+    /// The caller is known, but not allowed to do this. Distinct from
+    /// Unauthorized: signing in again would not help.
+    Forbidden(String),
     /// The request was malformed: unparseable JSON, an unusable path or query
     /// parameter. Distinct from `Validation`, which means "well-formed, but the
     /// values are wrong".
@@ -43,6 +46,7 @@ impl ApiError {
         match self {
             ApiError::NotFound(_) => (StatusCode::NOT_FOUND, "NOT_FOUND"),
             ApiError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED"),
+            ApiError::Forbidden(_) => (StatusCode::FORBIDDEN, "FORBIDDEN"),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "BAD_REQUEST"),
             ApiError::UnsupportedMediaType(_) => (
                 StatusCode::UNSUPPORTED_MEDIA_TYPE,
@@ -60,6 +64,7 @@ impl std::fmt::Display for ApiError {
         match self {
             ApiError::NotFound(m)
             | ApiError::Unauthorized(m)
+            | ApiError::Forbidden(m)
             | ApiError::BadRequest(m)
             | ApiError::UnsupportedMediaType(m)
             | ApiError::Validation(m)

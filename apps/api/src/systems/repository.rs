@@ -33,15 +33,22 @@ pub async fn list_by_org(db: &PgPool, org_id: Uuid) -> Result<Vec<System>, ApiEr
     rows.into_iter().map(SystemRow::into_domain).collect()
 }
 
-pub async fn find_by_id(db: &PgPool, id: Uuid) -> Result<Option<System>, ApiError> {
+/// Scoped to an organization. Without that filter a caller could read another
+/// tenant's system simply by knowing its id.
+pub async fn find_by_id(
+    db: &PgPool,
+    org_id: Uuid,
+    id: Uuid,
+) -> Result<Option<System>, ApiError> {
     let row = sqlx::query_as!(
         SystemRow,
         r#"SELECT id, organization_id, name, slug, description, system_type,
                   owner_team_id, documentation_url, repository_url, criticality,
                   lifecycle_status, metadata, created_at, updated_at
            FROM systems
-           WHERE id = $1"#,
-        id
+           WHERE id = $1 AND organization_id = $2"#,
+        id,
+        org_id
     )
     .fetch_optional(db)
     .await?;
@@ -87,7 +94,12 @@ pub async fn insert(
     row.into_domain()
 }
 
-pub async fn update(db: &PgPool, id: Uuid, input: &UpdateSystem) -> Result<Option<System>, ApiError> {
+pub async fn update(
+    db: &PgPool,
+    org_id: Uuid,
+    id: Uuid,
+    input: &UpdateSystem,
+) -> Result<Option<System>, ApiError> {
     // COALESCE($n, col): a NULL bind leaves the column untouched, a non-NULL
     // bind overwrites it. Simple and one static statement. Trade-off: it can't
     // set a nullable column back to NULL (that needs a dynamic query builder).
@@ -104,7 +116,7 @@ pub async fn update(db: &PgPool, id: Uuid, input: &UpdateSystem) -> Result<Optio
              criticality       = COALESCE($9, criticality),
              lifecycle_status  = COALESCE($10, lifecycle_status),
              metadata          = COALESCE($11, metadata)
-           WHERE id = $1
+           WHERE id = $1 AND organization_id = $12
            RETURNING id, organization_id, name, slug, description, system_type,
                      owner_team_id, documentation_url, repository_url, criticality,
                      lifecycle_status, metadata, created_at, updated_at"#,
@@ -118,7 +130,8 @@ pub async fn update(db: &PgPool, id: Uuid, input: &UpdateSystem) -> Result<Optio
         input.repository_url.as_deref(),
         input.criticality.map(|c| c.as_str()),
         input.lifecycle_status.map(|l| l.as_str()),
-        input.metadata.clone()
+        input.metadata.clone(),
+        org_id
     )
     .fetch_optional(db)
     .await?;
@@ -129,8 +142,12 @@ pub async fn update(db: &PgPool, id: Uuid, input: &UpdateSystem) -> Result<Optio
     }
 }
 
-pub async fn delete(db: &PgPool, id: Uuid) -> Result<bool, ApiError> {
-    let result = sqlx::query!("DELETE FROM systems WHERE id = $1", id)
+pub async fn delete(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<bool, ApiError> {
+    let result = sqlx::query!(
+        "DELETE FROM systems WHERE id = $1 AND organization_id = $2",
+        id,
+        org_id
+    )
         .execute(db)
         .await?;
 

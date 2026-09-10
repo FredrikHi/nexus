@@ -1,17 +1,5 @@
 //! Small helpers shared by more than one feature module.
 
-use uuid::Uuid;
-
-/// The organization every request currently operates in.
-///
-/// The platform is single-tenant for now, so this is a fixed stand-in. Once
-/// authentication lands, the org comes from the authenticated user and this
-/// function disappears; keeping it in one place means there is a single call
-/// site to replace rather than one per feature.
-pub fn default_org_id() -> Uuid {
-    Uuid::from_u128(1) // 00000000-0000-0000-0000-000000000001
-}
-
 /// Turn a human name into a URL-safe slug: "Invoice Service" -> "invoice-service".
 ///
 /// Runs of non-alphanumeric characters collapse into a single dash, and leading

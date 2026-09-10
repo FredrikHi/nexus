@@ -2,18 +2,21 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::error::ApiError;
-use crate::util::default_org_id;
 
 use super::dto::CreateApiKey;
 use super::model::{ApiKey, AuthenticatedKey, CreatedApiKey};
 use super::repository;
 use super::token;
 
-pub async fn list(db: &PgPool) -> Result<Vec<ApiKey>, ApiError> {
-    repository::list_by_org(db, default_org_id()).await
+pub async fn list(db: &PgPool, org_id: Uuid) -> Result<Vec<ApiKey>, ApiError> {
+    repository::list_by_org(db, org_id).await
 }
 
-pub async fn create(db: &PgPool, input: CreateApiKey) -> Result<CreatedApiKey, ApiError> {
+pub async fn create(
+    db: &PgPool,
+    org_id: Uuid,
+    input: CreateApiKey,
+) -> Result<CreatedApiKey, ApiError> {
     let name = input.name.trim();
     if name.is_empty() {
         return Err(ApiError::Validation("name must not be empty".to_string()));
@@ -35,7 +38,7 @@ pub async fn create(db: &PgPool, input: CreateApiKey) -> Result<CreatedApiKey, A
 
     let key = repository::insert(
         db,
-        default_org_id(),
+        org_id,
         name,
         &generated.prefix,
         &generated.token_hash,
@@ -48,8 +51,8 @@ pub async fn create(db: &PgPool, input: CreateApiKey) -> Result<CreatedApiKey, A
     Ok(CreatedApiKey { key, token: generated.token })
 }
 
-pub async fn revoke(db: &PgPool, id: Uuid) -> Result<ApiKey, ApiError> {
-    repository::revoke(db, default_org_id(), id)
+pub async fn revoke(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<ApiKey, ApiError> {
+    repository::revoke(db, org_id, id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("no active api key {id}")))
 }

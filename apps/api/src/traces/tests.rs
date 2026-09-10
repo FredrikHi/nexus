@@ -112,7 +112,7 @@ async fn status_rolls_up_by_severity(pool: PgPool) {
 
     span(&pool, "all-good", i, TelemetryStatus::Success, 30).await;
 
-    let traces = service::list(&pool, query()).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, query()).await.expect("list traces");
     let by_id = |id: &str| {
         traces
             .iter()
@@ -146,7 +146,7 @@ async fn filtering_by_integration_keeps_the_whole_trace(pool: PgPool) {
 
     let mut q = query();
     q.integration_id = Some(second);
-    let traces = service::list(&pool, q).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, q).await.expect("list traces");
 
     assert_eq!(traces.len(), 1, "only the trace touching `second` matches");
     let trace = &traces[0];
@@ -167,7 +167,7 @@ async fn only_errors_drops_healthy_and_rejected_traces(pool: PgPool) {
 
     let mut q = query();
     q.only_errors = Some(true);
-    let traces = service::list(&pool, q).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, q).await.expect("list traces");
 
     let mut ids: Vec<&str> = traces.iter().map(|t| t.trace_id.as_str()).collect();
     ids.sort_unstable();

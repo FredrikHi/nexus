@@ -56,7 +56,8 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 #[cfg(test)]
 pub async fn health_of(
     db: &sqlx::PgPool,
+    org_id: uuid::Uuid,
     integration_id: uuid::Uuid,
 ) -> Result<String, crate::error::ApiError> {
-    Ok(service::get(db, integration_id).await?.status.as_str().to_string())
+    Ok(service::get(db, org_id, integration_id).await?.status.as_str().to_string())
 }

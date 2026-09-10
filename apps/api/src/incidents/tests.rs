@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::integration_health;
 
-use super::dto::{AcknowledgeIncident, AddNote, ListIncidentsQuery};
+use super::dto::{AddNote, ListIncidentsQuery};
 use super::model::{IncidentEventKind, IncidentStatus, Severity};
 use super::service;
 
@@ -127,20 +127,16 @@ async fn an_incident_opens_escalates_and_resolves_with_health(pool: PgPool) {
     let result = pass(&pool).await;
     assert_eq!(result.opened, 1);
 
-    let open = service::list(&pool, open_query()).await.expect("list");
+    let open = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list");
     assert_eq!(open.len(), 1);
     assert_eq!(open[0].severity, Severity::Major);
     assert_eq!(open[0].status, IncidentStatus::Open);
     let incident_id = open[0].id;
 
     // A person picks it up. It stays open: only recovery resolves.
-    let detail = service::acknowledge(
-        &pool,
-        incident_id,
-        AcknowledgeIncident { actor: "fredrik".to_string() },
-    )
-    .await
-    .expect("acknowledge");
+    let detail = service::acknowledge(&pool, DEFAULT_ORG, incident_id, "fredrik")
+        .await
+        .expect("acknowledge");
     assert_eq!(detail.incident.status, IncidentStatus::Acknowledged);
     assert!(detail.incident.resolved_at.is_none(), "acknowledging must not resolve");
 
@@ -148,7 +144,7 @@ async fn an_incident_opens_escalates_and_resolves_with_health(pool: PgPool) {
     events(&pool, i, 60, 60).await;
     let result = pass(&pool).await;
     assert_eq!(result.escalated, 1);
-    let detail = service::get(&pool, incident_id).await.expect("get");
+    let detail = service::get(&pool, DEFAULT_ORG, incident_id).await.expect("get");
     assert_eq!(detail.incident.severity, Severity::Critical);
 
     // Recovery. 66 failures are already banked, so the window needs well over
@@ -157,10 +153,10 @@ async fn an_incident_opens_escalates_and_resolves_with_health(pool: PgPool) {
     let result = pass(&pool).await;
     assert_eq!(result.resolved, 1);
 
-    let detail = service::get(&pool, incident_id).await.expect("get");
+    let detail = service::get(&pool, DEFAULT_ORG, incident_id).await.expect("get");
     assert_eq!(detail.incident.status, IncidentStatus::Resolved);
     assert!(detail.incident.resolved_at.is_some());
-    assert!(service::list(&pool, open_query()).await.expect("list").is_empty());
+    assert!(service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list").is_empty());
 
     let kinds: Vec<IncidentEventKind> = detail.timeline.iter().map(|e| e.kind).collect();
     assert_eq!(
@@ -185,10 +181,10 @@ async fn only_one_incident_stays_open_per_integration(pool: PgPool) {
     pass(&pool).await;
     pass(&pool).await;
 
-    let open = service::list(&pool, open_query()).await.expect("list");
+    let open = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list");
     assert_eq!(open.len(), 1, "repeated passes must not duplicate the incident");
 
-    let detail = service::get(&pool, open[0].id).await.expect("get");
+    let detail = service::get(&pool, DEFAULT_ORG, open[0].id).await.expect("get");
     let opened = detail
         .timeline
         .iter()
@@ -204,7 +200,7 @@ async fn going_quiet_does_not_resolve_an_incident(pool: PgPool) {
     let i = seed_integration(&pool, "silent", "MEDIUM").await;
     events(&pool, i, 30, 15).await;
     pass(&pool).await;
-    assert_eq!(service::list(&pool, open_query()).await.expect("list").len(), 1);
+    assert_eq!(service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list").len(), 1);
 
     // Push every event outside the staleness window: health goes UNKNOWN.
     sqlx::query!("UPDATE telemetry_events SET occurred_at = occurred_at - INTERVAL '5 hours'")
@@ -214,10 +210,10 @@ async fn going_quiet_does_not_resolve_an_incident(pool: PgPool) {
 
     pass(&pool).await;
 
-    let health = integration_health::health_of(&pool, i).await.expect("health");
+    let health = integration_health::health_of(&pool, DEFAULT_ORG, i).await.expect("health");
     assert_eq!(health, "UNKNOWN", "no recent traffic means UNKNOWN");
 
-    let open = service::list(&pool, open_query()).await.expect("list");
+    let open = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list");
     assert_eq!(open.len(), 1, "the incident must stay open while health is unknown");
 }
 
@@ -230,7 +226,7 @@ async fn severity_does_not_fall_while_open(pool: PgPool) {
     // Badly broken: UNHEALTHY on a LOW integration is MAJOR.
     events(&pool, i, 30, 30).await;
     pass(&pool).await;
-    let open = service::list(&pool, open_query()).await.expect("list");
+    let open = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list");
     assert_eq!(open[0].severity, Severity::Major);
     let incident_id = open[0].id;
 
@@ -238,7 +234,7 @@ async fn severity_does_not_fall_while_open(pool: PgPool) {
     events(&pool, i, 270, 0).await;
     pass(&pool).await;
 
-    let detail = service::get(&pool, incident_id).await.expect("get");
+    let detail = service::get(&pool, DEFAULT_ORG, incident_id).await.expect("get");
     assert_eq!(detail.incident.status, IncidentStatus::Open, "still not healthy");
     assert_eq!(detail.incident.severity, Severity::Major, "severity must not fall");
 }
@@ -249,13 +245,13 @@ async fn acknowledging_twice_conflicts(pool: PgPool) {
     let i = seed_integration(&pool, "twice", "LOW").await;
     events(&pool, i, 30, 15).await;
     pass(&pool).await;
-    let id = service::list(&pool, open_query()).await.expect("list")[0].id;
+    let id = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list")[0].id;
 
-    service::acknowledge(&pool, id, AcknowledgeIncident { actor: "a".into() })
+    service::acknowledge(&pool, DEFAULT_ORG, id, "a")
         .await
         .expect("first acknowledge");
 
-    let second = service::acknowledge(&pool, id, AcknowledgeIncident { actor: "b".into() }).await;
+    let second = service::acknowledge(&pool, DEFAULT_ORG, id, "b").await;
     assert!(matches!(second, Err(crate::error::ApiError::Conflict(_))), "{second:?}");
 }
 
@@ -266,15 +262,17 @@ async fn notes_can_be_added_after_resolution(pool: PgPool) {
     let i = seed_integration(&pool, "postmortem", "LOW").await;
     events(&pool, i, 30, 15).await;
     pass(&pool).await;
-    let id = service::list(&pool, open_query()).await.expect("list")[0].id;
+    let id = service::list(&pool, DEFAULT_ORG, open_query()).await.expect("list")[0].id;
 
     events(&pool, i, 600, 0).await;
     pass(&pool).await;
 
     let detail = service::add_note(
         &pool,
+        DEFAULT_ORG,
         id,
-        AddNote { actor: "fredrik".into(), message: "Upstream deploy rolled back.".into() },
+        "fredrik",
+        AddNote { message: "Upstream deploy rolled back.".into() },
     )
     .await
     .expect("add note");

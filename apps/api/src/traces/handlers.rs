@@ -1,5 +1,6 @@
 use axum::extract::State;
 
+use crate::auth::OrgContext;
 use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Path, Query};
 use crate::AppState;
@@ -21,9 +22,10 @@ use super::service;
 )]
 pub async fn list(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Query(params): Query<ListTracesQuery>,
 ) -> Result<Json<Vec<TraceSummary>>, ApiError> {
-    Ok(Json(service::list(&state.db, params).await?))
+    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
 }
 
 #[utoipa::path(
@@ -38,7 +40,8 @@ pub async fn list(
 )]
 pub async fn get(
     State(state): State<AppState>,
+    ctx: OrgContext,
     Path(trace_id): Path<String>,
 ) -> Result<Json<TraceDetail>, ApiError> {
-    Ok(Json(service::get(&state.db, &trace_id).await?))
+    Ok(Json(service::get(&state.db, ctx.organization_id, &trace_id).await?))
 }

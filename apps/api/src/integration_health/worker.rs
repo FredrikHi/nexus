@@ -119,12 +119,14 @@ async fn evaluate_and_prune(
     config: &WorkerConfig,
     last_prune: &mut Option<Instant>,
 ) -> anyhow::Result<String> {
-    let result = service::evaluate_default_org(db).await?;
+    // Every tenant, not just one: health that is only computed for whoever
+    // happens to be looking is not health at all.
+    let result = service::evaluate_all(db).await?;
 
     // Reconcile immediately, in the same locked pass. Incidents are derived
     // from the health state this just wrote, so doing it here means the two
     // never sit out of step for a whole interval.
-    let incidents = crate::incidents::reconcile_default_org(db).await?;
+    let incidents = crate::incidents::reconcile_all(db).await?;
 
     let mut summary = format!(
         "evaluated {} integrations, {} changed status; incidents +{} ~{} -{}",

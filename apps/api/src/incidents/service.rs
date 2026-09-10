@@ -4,9 +4,8 @@ use uuid::Uuid;
 use crate::domain::Criticality;
 use crate::error::ApiError;
 use crate::integration_health::HealthStatus;
-use crate::util::default_org_id;
 
-use super::dto::{AcknowledgeIncident, AddNote, ListIncidentsQuery};
+use super::dto::{AddNote, ListIncidentsQuery};
 use super::model::{
     Incident, IncidentDetail, IncidentEventKind, ReconcileResult, Severity,
 };
@@ -110,16 +109,30 @@ pub async fn reconcile(db: &PgPool, org_id: Uuid) -> Result<ReconcileResult, Api
     Ok(result)
 }
 
-pub async fn reconcile_default_org(db: &PgPool) -> Result<ReconcileResult, ApiError> {
-    reconcile(db, default_org_id()).await
+/// Reconciles every organization. The worker's counterpart to evaluate_all.
+pub async fn reconcile_all(db: &PgPool) -> Result<ReconcileResult, ApiError> {
+    let mut total = ReconcileResult { opened: 0, escalated: 0, resolved: 0 };
+
+    for org_id in crate::organizations::all_ids(db).await? {
+        let result = reconcile(db, org_id).await?;
+        total.opened += result.opened;
+        total.escalated += result.escalated;
+        total.resolved += result.resolved;
+    }
+
+    Ok(total)
 }
 
-pub async fn list(db: &PgPool, query: ListIncidentsQuery) -> Result<Vec<Incident>, ApiError> {
+pub async fn list(
+    db: &PgPool,
+    org_id: Uuid,
+    query: ListIncidentsQuery,
+) -> Result<Vec<Incident>, ApiError> {
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
 
     repository::list(
         db,
-        default_org_id(),
+        org_id,
         query.integration_id,
         query.severity.map(|s| s.as_str()),
         query.status.map(|s| s.as_str()),
@@ -132,8 +145,8 @@ pub async fn list(db: &PgPool, query: ListIncidentsQuery) -> Result<Vec<Incident
     .collect()
 }
 
-pub async fn get(db: &PgPool, id: Uuid) -> Result<IncidentDetail, ApiError> {
-    let incident = repository::find(db, default_org_id(), id)
+pub async fn get(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<IncidentDetail, ApiError> {
+    let incident = repository::find(db, org_id, id)
         .await?
         .ok_or_else(|| ApiError::NotFound(format!("incident {id} not found")))?
         .into_domain()?;
@@ -151,19 +164,15 @@ pub async fn get(db: &PgPool, id: Uuid) -> Result<IncidentDetail, ApiError> {
 /// does that, and pretending otherwise would hide a live problem.
 pub async fn acknowledge(
     db: &PgPool,
+    org_id: Uuid,
     id: Uuid,
-    input: AcknowledgeIncident,
+    actor: &str,
 ) -> Result<IncidentDetail, ApiError> {
-    let actor = input.actor.trim();
-    if actor.is_empty() {
-        return Err(ApiError::Validation("actor must not be empty".to_string()));
-    }
-
     // Confirm it exists before reporting on its state, so a bad id is a clean
     // 404 rather than a confusing conflict.
-    let existing = get(db, id).await?;
+    let existing = get(db, org_id, id).await?;
 
-    if repository::acknowledge(db, default_org_id(), id, actor).await? {
+    if repository::acknowledge(db, org_id, id, actor).await? {
         repository::add_event(
             db,
             id,
@@ -172,7 +181,7 @@ pub async fn acknowledge(
             Some(actor),
         )
         .await?;
-        return get(db, id).await;
+        return get(db, org_id, id).await;
     }
 
     Err(ApiError::Conflict(format!(
@@ -181,20 +190,22 @@ pub async fn acknowledge(
     )))
 }
 
-pub async fn add_note(db: &PgPool, id: Uuid, input: AddNote) -> Result<IncidentDetail, ApiError> {
-    let actor = input.actor.trim();
+pub async fn add_note(
+    db: &PgPool,
+    org_id: Uuid,
+    id: Uuid,
+    actor: &str,
+    input: AddNote,
+) -> Result<IncidentDetail, ApiError> {
     let message = input.message.trim();
-    if actor.is_empty() {
-        return Err(ApiError::Validation("actor must not be empty".to_string()));
-    }
     if message.is_empty() {
         return Err(ApiError::Validation("message must not be empty".to_string()));
     }
 
     // 404 before writing, and notes stay allowed after resolution so a
     // postmortem can be written where the incident lives.
-    get(db, id).await?;
+    get(db, org_id, id).await?;
 
     repository::add_event(db, id, IncidentEventKind::Note, message, Some(actor)).await?;
-    get(db, id).await
+    get(db, org_id, id).await
 }

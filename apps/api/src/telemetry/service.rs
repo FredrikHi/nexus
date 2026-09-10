@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use crate::api_keys::AuthenticatedKey;
 use crate::error::ApiError;
-use crate::util::default_org_id;
 
 use super::dto::{IngestBatch, ListTelemetryQuery, SummaryQuery};
 use super::model::{IngestResult, TelemetryEvent, TelemetrySummary};
@@ -134,6 +133,7 @@ pub async fn ingest(
 
 pub async fn list(
     db: &PgPool,
+    org_id: Uuid,
     query: ListTelemetryQuery,
 ) -> Result<Vec<TelemetryEvent>, ApiError> {
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
@@ -141,7 +141,7 @@ pub async fn list(
 
     repository::list(
         db,
-        default_org_id(),
+        org_id,
         query.integration_id,
         query.environment_id,
         query.status.map(|s| s.as_str()),
@@ -153,12 +153,16 @@ pub async fn list(
     .await
 }
 
-pub async fn summary(db: &PgPool, query: SummaryQuery) -> Result<TelemetrySummary, ApiError> {
+pub async fn summary(
+    db: &PgPool,
+    org_id: Uuid,
+    query: SummaryQuery,
+) -> Result<TelemetrySummary, ApiError> {
     validate_window(query.from, query.to)?;
 
     let row = repository::summary(
         db,
-        default_org_id(),
+        org_id,
         query.integration_id,
         query.environment_id,
         query.from,

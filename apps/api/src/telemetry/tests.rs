@@ -20,8 +20,9 @@ const DEFAULT_ORG: Uuid = Uuid::from_u128(1);
 /// Builds a minimal landscape: one system, two components, one integration.
 async fn seed_integration(pool: &PgPool, org: Uuid, name: &str) -> Uuid {
     sqlx::query!(
-        "INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+        "INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING",
         org,
+        format!("org-{org}"),
         format!("org-{org}")
     )
     .execute(pool)
@@ -240,6 +241,7 @@ async fn error_rate_excludes_rejected(pool: PgPool) {
 
     let summary = service::summary(
         &pool,
+        DEFAULT_ORG,
         SummaryQuery { integration_id: Some(ours), environment_id: None, from: None, to: None },
     )
     .await
