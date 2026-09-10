@@ -13,6 +13,7 @@ mod integrations;
 mod openapi;
 mod organizations;
 mod systems;
+mod teams;
 mod telemetry;
 mod traces;
 mod util;
@@ -120,7 +121,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/api/v1/health", get(health::liveness))
         .route("/api/v1/health/ready", get(health::readiness))
-        .route("/api/v1/environments", get(environments::list_environments_handler))
+        .merge(environments::router())
         .merge(systems::router())
         .merge(components::router())
         .merge(integrations::router())
@@ -130,6 +131,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(integration_health::router())
         .merge(incidents::router())
         .merge(organizations::router())
+        .merge(teams::router())
         .merge(integration_types::router())
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so

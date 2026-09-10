@@ -29,10 +29,11 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/telemetry", get(handlers::list).post(handlers::ingest))
         .route("/api/v1/telemetry/summary", get(handlers::summary))
+        .route("/api/v1/telemetry/series", get(handlers::series))
 }
 
 #[derive(OpenApi)]
-#[openapi(paths(handlers::ingest, handlers::list, handlers::summary))]
+#[openapi(paths(handlers::ingest, handlers::list, handlers::summary, handlers::series))]
 struct TelemetryApi;
 
 pub fn openapi() -> utoipa::openapi::OpenApi {

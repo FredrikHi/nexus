@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             date_bin(\n               make_interval(secs => $6::int),\n               occurred_at,\n               TIMESTAMPTZ '2000-01-01 00:00:00+00'\n             )                                            AS \"bucket!\",\n             count(*)                                     AS \"total!\",\n             count(*) FILTER (WHERE status = 'SUCCESS')   AS \"success!\",\n             count(*) FILTER (WHERE status = 'FAILURE')   AS \"failure!\",\n             count(*) FILTER (WHERE status = 'TIMEOUT')   AS \"timeout!\",\n             count(*) FILTER (WHERE status = 'REJECTED')  AS \"rejected!\",\n             percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms)\n                                                          AS \"p95_duration_ms\"\n           FROM telemetry_events\n           WHERE organization_id = $1\n             AND ($2::uuid IS NULL OR integration_id = $2)\n             AND ($3::uuid IS NULL OR environment_id = $3)\n             AND occurred_at >= $4\n             AND occurred_at < $5\n           GROUP BY 1\n           ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bucket!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "total!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "success!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "failure!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "timeout!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "rejected!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "p95_duration_ms",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "fc96ca88994d28a0cc503307be0fb0c53d33f48c4d3006c1119a624656c8d09d"
+}

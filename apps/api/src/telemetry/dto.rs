@@ -62,3 +62,18 @@ pub struct SummaryQuery {
     pub from: Option<DateTime<Utc>>,
     pub to: Option<DateTime<Utc>>,
 }
+
+/// Query string for GET /telemetry/series.
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct SeriesQuery {
+    pub integration_id: Option<Uuid>,
+    pub environment_id: Option<Uuid>,
+    /// Defaults to 24 hours ago.
+    pub from: Option<DateTime<Utc>>,
+    /// Defaults to now.
+    pub to: Option<DateTime<Utc>>,
+    /// Bucket width. Omit and one is chosen to give roughly 60 points, which
+    /// is what a chart can actually render.
+    pub bucket_seconds: Option<i64>,
+}

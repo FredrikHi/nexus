@@ -166,3 +166,52 @@ impl SummaryRow {
         }
     }
 }
+
+/// One time bucket of telemetry, for charting.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SeriesPoint {
+    /// Start of the bucket.
+    pub bucket: DateTime<Utc>,
+    pub total: i64,
+    pub success: i64,
+    pub failure: i64,
+    pub timeout: i64,
+    pub rejected: i64,
+    /// FAILURE and TIMEOUT over total, matching the summary endpoint.
+    pub error_rate: f64,
+    pub p95_duration_ms: Option<f64>,
+}
+
+/// The raw bucket row, before the derived rate.
+#[derive(Debug)]
+pub struct SeriesRow {
+    pub bucket: DateTime<Utc>,
+    pub total: i64,
+    pub success: i64,
+    pub failure: i64,
+    pub timeout: i64,
+    pub rejected: i64,
+    pub p95_duration_ms: Option<f64>,
+}
+
+impl SeriesRow {
+    pub fn into_domain(self) -> SeriesPoint {
+        let unhealthy = self.failure + self.timeout;
+        let error_rate = if self.total == 0 {
+            0.0
+        } else {
+            unhealthy as f64 / self.total as f64
+        };
+
+        SeriesPoint {
+            bucket: self.bucket,
+            total: self.total,
+            success: self.success,
+            failure: self.failure,
+            timeout: self.timeout,
+            rejected: self.rejected,
+            error_rate,
+            p95_duration_ms: self.p95_duration_ms,
+        }
+    }
+}

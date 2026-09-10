@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::api_keys::AuthenticatedKey;
 use crate::error::ApiError;
 
-use super::dto::{IngestBatch, ListTelemetryQuery, SummaryQuery};
-use super::model::{IngestResult, TelemetryEvent, TelemetrySummary};
+use super::dto::{IngestBatch, ListTelemetryQuery, SeriesQuery, SummaryQuery};
+use super::model::{IngestResult, SeriesPoint, TelemetryEvent, TelemetrySummary};
 use super::repository::{self, EventColumns};
 
 /// Most requests a single batch may carry. Beyond this the client should split,
@@ -183,4 +183,47 @@ fn validate_window(
         }
     }
     Ok(())
+}
+
+/// How many points a chart should get when the caller does not choose.
+const TARGET_POINTS: i64 = 60;
+/// Hard ceiling, so a one-second bucket over a month cannot ask Postgres for
+/// millions of rows or hand the browser a series it cannot draw.
+const MAX_POINTS: i64 = 1_000;
+const MIN_BUCKET_SECONDS: i64 = 10;
+
+pub async fn series(
+    db: &PgPool,
+    org_id: Uuid,
+    query: SeriesQuery,
+) -> Result<Vec<SeriesPoint>, ApiError> {
+    let to = query.to.unwrap_or_else(Utc::now);
+    let from = query.from.unwrap_or(to - Duration::hours(24));
+
+    if to <= from {
+        return Err(ApiError::Validation("to must be after from".to_string()));
+    }
+
+    let span_seconds = (to - from).num_seconds().max(1);
+
+    // Pick a bucket that yields a readable number of points, then widen it if
+    // the caller asked for something that would produce too many.
+    let requested = query
+        .bucket_seconds
+        .unwrap_or_else(|| (span_seconds / TARGET_POINTS).max(MIN_BUCKET_SECONDS));
+    let smallest_allowed = (span_seconds / MAX_POINTS).max(MIN_BUCKET_SECONDS);
+    let bucket_seconds = requested.max(smallest_allowed);
+
+    let rows = repository::series(
+        db,
+        org_id,
+        query.integration_id,
+        query.environment_id,
+        from,
+        to,
+        bucket_seconds as i32,
+    )
+    .await?;
+
+    Ok(rows.into_iter().map(|r| r.into_domain()).collect())
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, key, name, description, is_builtin, created_at\n           FROM integration_types\n           ORDER BY name",
+  "query": "SELECT id, key, name, description, is_builtin, organization_id, created_at\n           FROM integration_types\n           WHERE organization_id IS NULL OR organization_id = $1\n           ORDER BY is_builtin DESC, name",
   "describe": {
     "columns": [
       {
@@ -30,12 +30,19 @@
       },
       {
         "ordinal": 5,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
         "name": "created_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Uuid"
+      ]
     },
     "nullable": [
       false,
@@ -43,8 +50,9 @@
       false,
       true,
       false,
+      true,
       false
     ]
   },
-  "hash": "f5c9b9a8917a61ed523a88ba57595d61c35a8c21df0a8f72bd59a81fad49e85d"
+  "hash": "f349525bc599ef4b9422ef777ad8537149dc28956b82d56290d397c69d2adc9d"
 }

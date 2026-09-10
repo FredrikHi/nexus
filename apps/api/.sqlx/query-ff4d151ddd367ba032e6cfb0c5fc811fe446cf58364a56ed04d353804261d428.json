@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM integration_types WHERE id = $1 AND organization_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ff4d151ddd367ba032e6cfb0c5fc811fe446cf58364a56ed04d353804261d428"
+}

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::error::ApiError;
 
-use super::model::{SummaryRow, TelemetryEvent, TelemetryEventRow};
+use super::model::{SeriesRow, SummaryRow, TelemetryEvent, TelemetryEventRow};
 
 /// Columns to insert, transposed from a batch of events into one array per
 /// column. Postgres receives arrays, not N statements.
@@ -195,4 +195,58 @@ pub async fn summary(
     .await?;
 
     Ok(row)
+}
+
+/// Buckets telemetry over time for a chart.
+///
+/// `date_bin` snaps each event to the start of its bucket, using a fixed
+/// origin so bucket boundaries are stable between calls: without that, two
+/// requests a minute apart would return points that do not line up.
+///
+/// Buckets with no events are absent rather than zero. Filling gaps is the
+/// caller's job, because only the caller knows whether a gap should render as
+/// a zero or as a break in the line.
+pub async fn series(
+    db: &PgPool,
+    org_id: Uuid,
+    integration_id: Option<Uuid>,
+    environment_id: Option<Uuid>,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+    bucket_seconds: i32,
+) -> Result<Vec<SeriesRow>, ApiError> {
+    let rows = sqlx::query_as!(
+        SeriesRow,
+        r#"SELECT
+             date_bin(
+               make_interval(secs => $6::int),
+               occurred_at,
+               TIMESTAMPTZ '2000-01-01 00:00:00+00'
+             )                                            AS "bucket!",
+             count(*)                                     AS "total!",
+             count(*) FILTER (WHERE status = 'SUCCESS')   AS "success!",
+             count(*) FILTER (WHERE status = 'FAILURE')   AS "failure!",
+             count(*) FILTER (WHERE status = 'TIMEOUT')   AS "timeout!",
+             count(*) FILTER (WHERE status = 'REJECTED')  AS "rejected!",
+             percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms)
+                                                          AS "p95_duration_ms"
+           FROM telemetry_events
+           WHERE organization_id = $1
+             AND ($2::uuid IS NULL OR integration_id = $2)
+             AND ($3::uuid IS NULL OR environment_id = $3)
+             AND occurred_at >= $4
+             AND occurred_at < $5
+           GROUP BY 1
+           ORDER BY 1"#,
+        org_id,
+        integration_id,
+        environment_id,
+        from,
+        to,
+        bucket_seconds
+    )
+    .fetch_all(db)
+    .await?;
+
+    Ok(rows)
 }

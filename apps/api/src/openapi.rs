@@ -19,9 +19,9 @@ use utoipa::OpenApi;
     paths(
         crate::health::liveness,
         crate::health::readiness,
-        crate::environments::list_environments_handler,
     ),
     tags(
+        (name = "Teams", description = "Groups inside an organization, and what they are responsible for."),
         (name = "Account", description = "Who you are, the organizations you belong to, and who else is in them."),
         (name = "Systems", description = "Deployable units and external services."),
         (name = "Components", description = "The parts inside a system. Integrations connect these, not systems."),
@@ -40,6 +40,7 @@ struct RootApi;
 /// The complete document served at `/api-docs/openapi.json`.
 pub fn spec() -> utoipa::openapi::OpenApi {
     let mut doc = RootApi::openapi();
+    doc.merge(crate::environments::openapi());
     doc.merge(crate::systems::openapi());
     doc.merge(crate::components::openapi());
     doc.merge(crate::integrations::openapi());
@@ -50,5 +51,6 @@ pub fn spec() -> utoipa::openapi::OpenApi {
     doc.merge(crate::integration_health::openapi());
     doc.merge(crate::incidents::openapi());
     doc.merge(crate::organizations::openapi());
+    doc.merge(crate::teams::openapi());
     doc
 }

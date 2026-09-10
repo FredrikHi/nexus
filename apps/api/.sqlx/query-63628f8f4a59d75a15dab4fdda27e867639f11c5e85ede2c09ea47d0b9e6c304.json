@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id AS \"user_id!\", u.email AS \"email!\",\n                  u.display_name AS \"display_name!\", u.avatar_url\n           FROM team_members m\n           JOIN users u ON u.id = m.user_id\n           WHERE m.team_id = $1\n           ORDER BY u.display_name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "email!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "display_name!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "avatar_url",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "63628f8f4a59d75a15dab4fdda27e867639f11c5e85ede2c09ea47d0b9e6c304"
+}

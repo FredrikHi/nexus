@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             t.id, t.organization_id, t.name, t.slug, t.description,\n             (SELECT count(*) FROM team_members m WHERE m.team_id = t.id)      AS \"member_count!\",\n             (SELECT count(*) FROM systems s WHERE s.owner_team_id = t.id)     AS \"owned_systems!\",\n             (SELECT count(*) FROM integrations i WHERE i.owner_team_id = t.id) AS \"owned_integrations!\",\n             t.created_at, t.updated_at\n           FROM teams t\n           WHERE t.organization_id = $1\n           ORDER BY t.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "slug",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "member_count!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "owned_systems!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "owned_integrations!",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      null,
+      null,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "c1106e5c28d88b8b38c8ff98bd88fc445b40c57ed918af0d46cadf0a2c58955e"
+}

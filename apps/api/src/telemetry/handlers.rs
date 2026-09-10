@@ -7,8 +7,8 @@ use crate::error::{ApiError, ErrorBody};
 use crate::extract::{Json, Query};
 use crate::AppState;
 
-use super::dto::{IngestBatch, ListTelemetryQuery, SummaryQuery};
-use super::model::{IngestResult, TelemetryEvent, TelemetrySummary};
+use super::dto::{IngestBatch, ListTelemetryQuery, SeriesQuery, SummaryQuery};
+use super::model::{IngestResult, SeriesPoint, TelemetryEvent, TelemetrySummary};
 use super::service;
 
 #[utoipa::path(
@@ -74,4 +74,24 @@ pub async fn summary(
     Query(params): Query<SummaryQuery>,
 ) -> Result<Json<TelemetrySummary>, ApiError> {
     Ok(Json(service::summary(&state.db, ctx.organization_id, params).await?))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/telemetry/series",
+    tag = "Telemetry",
+    params(SeriesQuery),
+    responses(
+        (status = 200,
+         description = "Telemetry bucketed over time. Buckets with no events are omitted                         rather than returned as zero.",
+         body = Vec<SeriesPoint>),
+        (status = 422, description = "Inverted time window", body = ErrorBody),
+    )
+)]
+pub async fn series(
+    State(state): State<AppState>,
+    ctx: OrgContext,
+    Query(params): Query<SeriesQuery>,
+) -> Result<Json<Vec<SeriesPoint>>, ApiError> {
+    Ok(Json(service::series(&state.db, ctx.organization_id, params).await?))
 }
