@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO environments (organization_id, name, slug, is_production)\n           SELECT $1, e.name, e.slug, e.is_production\n           FROM (VALUES\n                   ('Development', 'development', false),\n                   ('Test',        'test',        false),\n                   ('Staging',     'staging',     false),\n                   ('Production',  'production',  true)\n                ) AS e(name, slug, is_production)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c5a6d4b523f7f9cb26648bcfd21d147fa2a98b793a0926ccd302976385809020"
+}

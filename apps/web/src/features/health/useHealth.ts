@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { apiGet } from '../../lib/api'
+import { api } from '../../lib/api'
 
 interface HealthResponse {
   status: string
@@ -10,7 +10,8 @@ interface HealthResponse {
 export function useHealth() {
   return useQuery({
     queryKey: ['health'],
-    queryFn: () => apiGet<HealthResponse>('/health'),
+    // Liveness is unauthenticated and not tenant-scoped.
+    queryFn: () => api.get<HealthResponse>('/health', { withoutOrg: true }),
     refetchInterval: 10_000,
   })
 }

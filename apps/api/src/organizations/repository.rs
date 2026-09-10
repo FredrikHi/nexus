@@ -39,10 +39,28 @@ pub async fn create_with_owner(
     .execute(&mut *tx)
     .await?;
 
-    // Every default policy the platform needs for a brand new tenant. Without
-    // this the health worker would evaluate the organization against nothing.
+    // Everything a brand new tenant needs to be usable immediately.
+    //
+    // Without the default policy the health worker would have no thresholds to
+    // evaluate against. Without environments an integration could not be
+    // assigned one, and the migration only seeds them for the bootstrap
+    // organization, which no real user belongs to.
     sqlx::query!(
         "INSERT INTO health_policies (organization_id, integration_id) VALUES ($1, NULL)",
+        organization.id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query!(
+        r#"INSERT INTO environments (organization_id, name, slug, is_production)
+           SELECT $1, e.name, e.slug, e.is_production
+           FROM (VALUES
+                   ('Development', 'development', false),
+                   ('Test',        'test',        false),
+                   ('Staging',     'staging',     false),
+                   ('Production',  'production',  true)
+                ) AS e(name, slug, is_production)"#,
         organization.id
     )
     .execute(&mut *tx)
