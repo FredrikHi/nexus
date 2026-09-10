@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import { AuthGate } from './features/auth/AuthGate'
 import { OrgSwitcher } from './features/organizations/OrgSwitcher'
@@ -5,6 +6,20 @@ import { Dashboard } from './features/dashboard/Dashboard'
 import { Systems } from './features/systems/Systems'
 import { Integrations } from './features/integrations/Integrations'
 import { Incidents } from './features/incidents/Incidents'
+
+// Split by route. The flow graph pulls in a whole graph library and the charts
+// pull in a charting one; neither belongs in the bundle someone downloads just
+// to reach the sign-in screen.
+const Flow = lazy(() => import('./features/flow/Flow').then((m) => ({ default: m.Flow })))
+const Traces = lazy(() => import('./features/traces/Traces').then((m) => ({ default: m.Traces })))
+const Events = lazy(() => import('./features/events/Events').then((m) => ({ default: m.Events })))
+const Teams = lazy(() => import('./features/admin/Teams').then((m) => ({ default: m.Teams })))
+const Environments = lazy(() =>
+  import('./features/admin/Environments').then((m) => ({ default: m.Environments })),
+)
+const IntegrationTypes = lazy(() =>
+  import('./features/admin/IntegrationTypes').then((m) => ({ default: m.IntegrationTypes })),
+)
 import { useHealth } from './features/health/useHealth'
 import { signOut } from './lib/authClient'
 import { clearAccessToken } from './lib/token'
@@ -12,12 +27,24 @@ import { setActiveOrg } from './lib/activeOrg'
 import type { Me } from './lib/types'
 
 const NAV: { section: string | null; items: { to: string; label: string; end?: boolean }[] }[] = [
-  { section: null, items: [{ to: '/', label: 'Dashboard', end: true }] },
+  { section: null, items: [
+    { to: '/', label: 'Dashboard', end: true },
+    { to: '/flow', label: 'Flow' },
+  ] },
   { section: 'Landscape', items: [
     { to: '/systems', label: 'Systems' },
     { to: '/integrations', label: 'Integrations' },
   ] },
+  { section: 'Observability', items: [
+    { to: '/traces', label: 'Traces' },
+    { to: '/events', label: 'Events' },
+  ] },
   { section: 'Operations', items: [{ to: '/incidents', label: 'Incidents' }] },
+  { section: 'Administration', items: [
+    { to: '/teams', label: 'Teams' },
+    { to: '/environments', label: 'Environments' },
+    { to: '/integration-types', label: 'Integration Types' },
+  ] },
 ]
 
 function ApiPill() {
@@ -104,14 +131,22 @@ function Shell({ me }: { me: Me }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto p-8">
+      <main className="flex flex-1 flex-col overflow-auto p-8">
+        <Suspense fallback={<p className="text-sm text-neutral-500">Loading…</p>}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/systems" element={<Systems />} />
           <Route path="/integrations" element={<Integrations />} />
+          <Route path="/flow" element={<Flow />} />
+          <Route path="/traces" element={<Traces />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/incidents" element={<Incidents />} />
+          <Route path="/teams" element={<Teams />} />
+          <Route path="/environments" element={<Environments />} />
+          <Route path="/integration-types" element={<IntegrationTypes />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
     </div>
   )

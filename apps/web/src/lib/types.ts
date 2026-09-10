@@ -87,13 +87,21 @@ export interface IntegrationType {
   key: string
   name: string
   description: string | null
+  is_builtin: boolean
+  /** Null for a built-in; set means it belongs to this organization alone. */
+  organization_id: string | null
+  created_at: string
 }
 
 export interface Environment {
   id: string
+  organization_id: string
   name: string
   slug: string
+  description: string | null
   is_production: boolean
+  created_at: string
+  updated_at: string
 }
 
 export type HealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'UNKNOWN'
@@ -138,4 +146,75 @@ export interface TelemetrySummary {
   p50_duration_ms: number | null
   p95_duration_ms: number | null
   p99_duration_ms: number | null
+}
+
+export type TelemetryStatus = 'SUCCESS' | 'FAILURE' | 'TIMEOUT' | 'REJECTED'
+
+export interface TelemetryEvent {
+  id: string
+  integration_id: string
+  environment_id: string | null
+  occurred_at: string
+  status: TelemetryStatus
+  duration_ms: number | null
+  trace_id: string | null
+  operation: string | null
+  status_code: number | null
+  error_type: string | null
+  error_message: string | null
+  received_at: string
+}
+
+export interface SeriesPoint {
+  bucket: string
+  total: number
+  success: number
+  failure: number
+  timeout: number
+  rejected: number
+  error_rate: number
+  p95_duration_ms: number | null
+}
+
+export interface TraceSummary {
+  trace_id: string
+  started_at: string
+  ended_at: string
+  elapsed_ms: number
+  span_count: number
+  integration_count: number
+  error_count: number
+  status: TelemetryStatus
+}
+
+export interface TraceDetail extends TraceSummary {
+  spans: TelemetryEvent[]
+}
+
+export interface Team {
+  id: string
+  organization_id: string
+  name: string
+  slug: string
+  description: string | null
+  member_count: number
+  owned_systems: number
+  owned_integrations: number
+  created_at: string
+}
+
+export interface TeamMember {
+  user_id: string
+  email: string
+  display_name: string
+  avatar_url: string | null
+}
+
+export interface Member {
+  user_id: string
+  email: string
+  display_name: string
+  avatar_url: string | null
+  role: OrgRole
+  joined_at: string
 }

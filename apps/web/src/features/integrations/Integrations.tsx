@@ -7,6 +7,8 @@ import type {
 import { Badge, Card, EmptyState, HealthBadge, PageHeader } from '../../components/ui'
 import { buttonClass, formatMs, formatPercent, relativeTime } from '../../lib/format'
 import { CRITICALITY_STYLES, humanise } from '../systems/constants'
+import { ErrorRateChart, VolumeChart, WindowPicker } from '../charts/LazyCharts'
+import { useSeries } from '../charts/useSeries'
 import { NewIntegrationForm } from './NewIntegrationForm'
 
 export function Integrations() {
@@ -148,6 +150,9 @@ function TelemetryPanel({
       api.get<TelemetrySummary>(`/telemetry/summary?integration_id=${integrationId}`),
   })
 
+  const [hours, setHours] = useState(24)
+  const series = useSeries(integrationId, hours)
+
   if (summary.isPending) return <p className="text-sm text-neutral-600">Loading…</p>
 
   const s = summary.data
@@ -160,15 +165,34 @@ function TelemetryPanel({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <Stat label="Events" value={String(s.total)} />
-      <Stat label="Error rate" value={formatPercent(s.error_rate)} />
-      <Stat label="p95" value={formatMs(s.p95_duration_ms)} />
-      <Stat label="Last event" value={relativeTime(health?.last_event_at ?? null)} />
-      <Stat label="Success" value={String(s.success)} />
-      <Stat label="Failure" value={String(s.failure)} />
-      <Stat label="Timeout" value={String(s.timeout)} />
-      <Stat label="Rejected" value={String(s.rejected)} />
+    <div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Events" value={String(s.total)} />
+        <Stat label="Error rate" value={formatPercent(s.error_rate)} />
+        <Stat label="p95" value={formatMs(s.p95_duration_ms)} />
+        <Stat label="Last event" value={relativeTime(health?.last_event_at ?? null)} />
+        <Stat label="Success" value={String(s.success)} />
+        <Stat label="Failure" value={String(s.failure)} />
+        <Stat label="Timeout" value={String(s.timeout)} />
+        <Stat label="Rejected" value={String(s.rejected)} />
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <WindowPicker hours={hours} onChange={setHours} />
+      </div>
+
+      {(series.data?.length ?? 0) > 0 && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div>
+            <div className="mb-1 text-xs text-neutral-500">Calls by outcome</div>
+            <VolumeChart data={series.data ?? []} hours={hours} />
+          </div>
+          <div>
+            <div className="mb-1 text-xs text-neutral-500">Error rate and p95 latency</div>
+            <ErrorRateChart data={series.data ?? []} hours={hours} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

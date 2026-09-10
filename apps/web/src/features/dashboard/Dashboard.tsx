@@ -1,13 +1,17 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import type { HealthStatus, Incident, IntegrationHealth, System } from '../../lib/types'
 import { Card, EmptyState, HealthBadge, IncidentStatusBadge, PageHeader, SeverityBadge } from '../../components/ui'
 import { formatPercent, relativeTime } from '../../lib/format'
+import { ErrorRateChart, VolumeChart, WindowPicker } from '../charts/LazyCharts'
+import { useSeries } from '../charts/useSeries'
 
 // Worst first: a dashboard should lead with what needs attention.
 const ORDER: HealthStatus[] = ['UNHEALTHY', 'DEGRADED', 'UNKNOWN', 'HEALTHY']
 
 export function Dashboard() {
+  const [hours, setHours] = useState(24)
   const overview = useQuery({
     queryKey: ['health-overview'],
     queryFn: () => api.get<Record<string, number>>('/integration-health/overview'),
@@ -58,6 +62,8 @@ export function Dashboard() {
           </Card>
         ))}
       </div>
+
+      <TrafficCharts hours={hours} onWindowChange={setHours} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
@@ -111,6 +117,45 @@ export function Dashboard() {
           )}
         </section>
       </div>
+    </div>
+  )
+}
+
+/** Traffic across every integration in the organization. */
+function TrafficCharts({
+  hours,
+  onWindowChange,
+}: {
+  hours: number
+  onWindowChange: (hours: number) => void
+}) {
+  const series = useSeries(undefined, hours)
+  const points = series.data ?? []
+
+  return (
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-neutral-300">Traffic</h2>
+        <WindowPicker hours={hours} onChange={onWindowChange} />
+      </div>
+
+      {points.length === 0 ? (
+        <EmptyState
+          title="No telemetry in this window."
+          hint="Widen the window, or send events with an API key."
+        />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <div className="mb-2 text-xs text-neutral-500">Calls by outcome</div>
+            <VolumeChart data={points} hours={hours} />
+          </Card>
+          <Card>
+            <div className="mb-2 text-xs text-neutral-500">Error rate and p95 latency</div>
+            <ErrorRateChart data={points} hours={hours} />
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
