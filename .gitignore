@@ -1,0 +1,10 @@
+# Rust
+/apps/api/target
+# Node
+/apps/web/node_modules
+/apps/web/dist
+# Env & secrets
+.env
+
+# Toolchain installers, not project sources
+rustup-init.exe

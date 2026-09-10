@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO telemetry_events\n             (organization_id, integration_id, environment_id, occurred_at, status,\n              duration_ms, trace_id, operation, status_code, error_type,\n              error_message, payload_bytes, metadata)\n           SELECT $1, u.integration_id, u.environment_id, u.occurred_at, u.status,\n                  u.duration_ms, u.trace_id, u.operation, u.status_code, u.error_type,\n                  u.error_message, u.payload_bytes, u.metadata\n           FROM UNNEST(\n                  $2::uuid[], $3::uuid[], $4::timestamptz[], $5::text[], $6::int4[],\n                  $7::text[], $8::text[], $9::int4[], $10::text[], $11::text[],\n                  $12::int8[], $13::jsonb[]\n                ) AS u(integration_id, environment_id, occurred_at, status,\n                       duration_ms, trace_id, operation, status_code, error_type,\n                       error_message, payload_bytes, metadata)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray",
+        "UuidArray",
+        "TimestamptzArray",
+        "TextArray",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "Int8Array",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "14cd313a8098858b0ef5df838f827054763253bb122fa88bcd7e31bf86288bf3"
+}

@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.system_id, c.name, c.slug, c.description, c.component_type,\n                  c.owner_team_id, c.repository_url, c.documentation_url, c.metadata,\n                  c.created_at, c.updated_at\n           FROM components c\n           JOIN systems s ON s.id = c.system_id\n           WHERE c.id = $1 AND s.organization_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "system_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "slug",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "component_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "owner_team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "repository_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "documentation_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "58876e957800a69dc506edb31b90265633d70b3c97689d8c8cc3800051ae12de"
+}

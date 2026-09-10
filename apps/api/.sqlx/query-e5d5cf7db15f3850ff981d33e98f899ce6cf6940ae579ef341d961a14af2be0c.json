@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             EXISTS (SELECT 1 FROM components c JOIN systems s ON s.id = c.system_id\n                     WHERE c.id = $1 AND s.organization_id = $5) AS \"source_exists!\",\n             EXISTS (SELECT 1 FROM components c JOIN systems s ON s.id = c.system_id\n                     WHERE c.id = $2 AND s.organization_id = $5) AS \"destination_exists!\",\n             EXISTS (SELECT 1 FROM integration_types\n                     WHERE id = $3) AS \"integration_type_exists!\",\n             ($4::uuid IS NULL\n              OR EXISTS (SELECT 1 FROM environments\n                         WHERE id = $4 AND organization_id = $5)) AS \"environment_exists!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_exists!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 1,
+        "name": "destination_exists!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "integration_type_exists!",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 3,
+        "name": "environment_exists!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "e5d5cf7db15f3850ff981d33e98f899ce6cf6940ae579ef341d961a14af2be0c"
+}

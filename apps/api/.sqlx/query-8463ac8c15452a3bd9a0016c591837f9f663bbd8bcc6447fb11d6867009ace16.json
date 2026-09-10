@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE components SET\n             name              = COALESCE($2, name),\n             slug              = COALESCE($3, slug),\n             description       = COALESCE($4, description),\n             component_type    = COALESCE($5, component_type),\n             owner_team_id     = COALESCE($6, owner_team_id),\n             repository_url    = COALESCE($7, repository_url),\n             documentation_url = COALESCE($8, documentation_url),\n             metadata          = COALESCE($9, metadata)\n           WHERE id = $1\n           RETURNING id, system_id, name, slug, description, component_type,\n                     owner_team_id, repository_url, documentation_url, metadata,\n                     created_at, updated_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "system_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "slug",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "component_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "owner_team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "repository_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "documentation_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8463ac8c15452a3bd9a0016c591837f9f663bbd8bcc6447fb11d6867009ace16"
+}

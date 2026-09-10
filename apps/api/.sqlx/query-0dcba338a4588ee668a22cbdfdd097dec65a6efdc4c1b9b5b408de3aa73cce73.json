@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"api_key_id!\", organization_id AS \"organization_id!\", environment_id\n           FROM api_keys\n           WHERE token_hash = $1\n             AND revoked_at IS NULL\n             AND (expires_at IS NULL OR expires_at > now())",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "api_key_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "environment_id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0dcba338a4588ee668a22cbdfdd097dec65a6efdc4c1b9b5b408de3aa73cce73"
+}

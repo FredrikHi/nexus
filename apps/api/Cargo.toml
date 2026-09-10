@@ -1,0 +1,26 @@
+[package]
+name = "integration-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = [
+       "runtime-tokio", "postgres", "uuid", "chrono", "json", "migrate", "macros",
+
+] }
+uuid = { version = "1", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tower-http = { version = "0.6", features = ["trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+dotenvy = "0.15"
+utoipa = { version = "5.5.0", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
+sha2 = "0.11.0"
+hex = "0.4.3"
+rand = "0.10.2"
