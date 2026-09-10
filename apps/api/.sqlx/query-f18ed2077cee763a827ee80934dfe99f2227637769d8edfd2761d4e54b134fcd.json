@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO integration_health\n             (integration_id, organization_id, status, since, evaluated_at, window_minutes,\n              event_count, error_count, error_rate, p95_duration_ms, last_event_at, reason)\n           VALUES ($1,$2,$3,now(),now(),$4,$5,$6,$7,$8,$9,$10)\n           ON CONFLICT (integration_id) DO UPDATE SET\n             status          = EXCLUDED.status,\n             since           = CASE WHEN integration_health.status = EXCLUDED.status\n                                    THEN integration_health.since ELSE now() END,\n             evaluated_at    = now(),\n             window_minutes  = EXCLUDED.window_minutes,\n             event_count     = EXCLUDED.event_count,\n             error_count     = EXCLUDED.error_count,\n             error_rate      = EXCLUDED.error_rate,\n             p95_duration_ms = EXCLUDED.p95_duration_ms,\n             last_event_at   = EXCLUDED.last_event_at,\n             reason          = EXCLUDED.reason",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Int4",
+        "Int8",
+        "Int8",
+        "Float8",
+        "Float8",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f18ed2077cee763a827ee80934dfe99f2227637769d8edfd2761d4e54b134fcd"
+}

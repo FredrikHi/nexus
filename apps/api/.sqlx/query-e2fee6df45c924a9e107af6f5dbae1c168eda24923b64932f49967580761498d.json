@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, integration_id, from_status, to_status, changed_at,\n                  reason, error_rate, event_count\n           FROM health_transitions\n           WHERE organization_id = $1 AND integration_id = $2\n           ORDER BY changed_at DESC\n           LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "integration_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "from_status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "to_status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "changed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "reason",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "error_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 7,
+        "name": "event_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "e2fee6df45c924a9e107af6f5dbae1c168eda24923b64932f49967580761498d"
+}

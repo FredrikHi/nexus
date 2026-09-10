@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO health_transitions\n             (integration_id, organization_id, from_status, to_status, reason,\n              error_rate, event_count)\n           VALUES ($1,$2,$3,$4,$5,$6,$7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2a66d55889b404476575002cebebd1908930f3f440d0d4cffa7c7f1b331da08e"
+}

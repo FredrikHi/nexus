@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT drop_telemetry_partitions_before(\n             now() - make_interval(days => $1::int)\n           ) AS \"dropped!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dropped!",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c317797c4a7112f480fdf0679c0bcb7fbc22e0169e59b0d4df211e9755acb7a7"
+}

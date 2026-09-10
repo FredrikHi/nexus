@@ -5,6 +5,7 @@ mod environments;
 mod error;
 mod extract;
 mod health;
+mod integration_health;
 mod integration_types;
 mod integrations;
 mod openapi;
@@ -72,6 +73,21 @@ async fn main() -> anyhow::Result<()> {
     telemetry::ensure_partitions(&db).await?;
     tracing::info!("telemetry partitions ensured");
 
+    // Health is evaluated on a timer rather than on read, so a status change
+    // is noticed while nobody is watching. Only one instance evaluates at a
+    // time; the others skip the pass.
+    if integration_health::worker_enabled() {
+        let config = integration_health::WorkerConfig::from_env();
+        tracing::info!(
+            interval_secs = config.interval.as_secs(),
+            retention_days = config.retention_days,
+            "starting health evaluation worker"
+        );
+        integration_health::spawn_worker(db.clone(), config);
+    } else {
+        tracing::info!("health evaluation worker disabled");
+    }
+
     let state = AppState { db };
 
     // 4. The router: URL -> handler. This is your ASP.NET endpoint map.
@@ -85,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(api_keys::router())
         .merge(telemetry::router())
         .merge(traces::router())
+        .merge(integration_health::router())
         .merge(integration_types::router())
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so

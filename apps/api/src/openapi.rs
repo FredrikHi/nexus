@@ -28,8 +28,9 @@ use utoipa::OpenApi;
         (name = "Reference data", description = "Environments and the integration type catalogue."),
         (name = "Telemetry", description = "Recorded calls across integrations: ingest and query."),
         (name = "Traces", description = "Correlated flows across integrations, derived from telemetry."),
+        (name = "Integration health", description = "Per-integration health derived from telemetry on a schedule."),
         (name = "API keys", description = "Credentials that authenticate telemetry ingestion."),
-        (name = "Health", description = "Liveness and readiness probes."),
+        (name = "Service health", description = "Liveness and readiness probes for the API process itself."),
     ),
 )]
 struct RootApi;
@@ -44,5 +45,6 @@ pub fn spec() -> utoipa::openapi::OpenApi {
     doc.merge(crate::api_keys::openapi());
     doc.merge(crate::telemetry::openapi());
     doc.merge(crate::traces::openapi());
+    doc.merge(crate::integration_health::openapi());
     doc
 }

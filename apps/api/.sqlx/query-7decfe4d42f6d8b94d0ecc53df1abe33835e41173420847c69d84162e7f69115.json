@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT integration_id, organization_id, status, since, evaluated_at,\n                  window_minutes, event_count, error_count, error_rate,\n                  p95_duration_ms, last_event_at, reason\n           FROM integration_health\n           WHERE organization_id = $1\n           ORDER BY CASE status\n                      WHEN 'UNHEALTHY' THEN 0\n                      WHEN 'DEGRADED'  THEN 1\n                      WHEN 'UNKNOWN'   THEN 2\n                      ELSE 3\n                    END,\n                    since ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "integration_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "since",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "evaluated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "window_minutes",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "event_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "error_count",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "error_rate",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 9,
+        "name": "p95_duration_ms",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 10,
+        "name": "last_event_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "reason",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "7decfe4d42f6d8b94d0ecc53df1abe33835e41173420847c69d84162e7f69115"
+}

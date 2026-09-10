@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO integrations\n             (organization_id, name, slug, source_component_id,\n              destination_component_id, integration_type_id, monitoring_enabled)\n           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "368a46affc83a3f4b88de5017d96fe65ae6a56f4160e928b4832fbe9f704d3b5"
+}

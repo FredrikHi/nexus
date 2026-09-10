@@ -16,7 +16,7 @@ pub struct HealthResponse {
 #[utoipa::path(
     get,
     path = "/api/v1/health",
-    tag = "Health",
+    tag = "Service health",
     responses((status = 200, description = "The process is up", body = HealthResponse))
 )]
 pub async fn liveness() -> Json<HealthResponse> {
@@ -27,7 +27,7 @@ pub async fn liveness() -> Json<HealthResponse> {
 #[utoipa::path(
     get,
     path = "/api/v1/health/ready",
-    tag = "Health",
+    tag = "Service health",
     responses(
         (status = 200, description = "The database is reachable", body = HealthResponse),
         (status = 503, description = "The database is not reachable"),
