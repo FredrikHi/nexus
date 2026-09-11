@@ -1,0 +1,76 @@
+# Rendered at container start by the nginx image's entrypoint, which runs
+# envsubst over every *.template in /etc/nginx/templates. Only API_UPSTREAM
+# and AUTH_UPSTREAM are substituted (NGINX_ENVSUBST_FILTER in the Dockerfile),
+# so nginx's own $uri / $host variables survive untouched.
+
+server {
+  listen 80;
+  server_name _;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  # Docker's embedded DNS, filled in by the image's 15-local-resolvers script.
+  # Needed because the proxy_pass targets below are variables: that defers name
+  # resolution to request time, so this container still starts (and serves the
+  # SPA) when a backend is down. A literal proxy_pass host is resolved at
+  # config load instead, and nginx refuses to start if it cannot be found.
+  resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
+  # Coolify's container healthcheck hits this; it must not touch a backend.
+  location = /healthz {
+    access_log off;
+    add_header content-type application/json always;
+    return 200 '{"status":"ok"}';
+  }
+
+  # Identity. The longest matching prefix wins in nginx, so this takes
+  # precedence over /api/v1 and over any future /api route.
+  location /api/auth/ {
+    set $auth_upstream "${AUTH_UPSTREAM}";
+    proxy_pass http://$auth_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    # Better Auth decides whether to mark cookies Secure from this. Coolify
+    # terminates TLS upstream, so the value has to be forwarded, not guessed.
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+  }
+
+  # Domain API.
+  location /api/v1/ {
+    set $api_upstream "${API_UPSTREAM}";
+    proxy_pass http://$api_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+    proxy_read_timeout 60s;
+  }
+
+  # Vite fingerprints these filenames, so they can be cached indefinitely.
+  location /assets/ {
+    expires 1y;
+    add_header cache-control "public, immutable";
+    try_files $uri =404;
+  }
+
+  # index.html must never be cached, or a browser keeps loading the previous
+  # deployment's asset filenames after a release.
+  location = /index.html {
+    add_header cache-control "no-store" always;
+  }
+
+  # SPA fallback: let React Router handle client-side routes.
+  location / {
+    try_files $uri /index.html;
+  }
+
+  gzip on;
+  gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+  gzip_min_length 1024;
+}

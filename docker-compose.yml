@@ -48,10 +48,10 @@ services:
       # Who tokens must be issued by, and for. Both are checked on every
       # request: a valid signature is not enough if the token was minted for
       # a different application.
-      AUTH_ISSUER: ${AUTH_BASE_URL:-http://localhost:3001}
+      AUTH_ISSUER: ${AUTH_BASE_URL:-http://localhost:3010}
       AUTH_AUDIENCE: integration-observability-api
       # Reached over the compose network rather than the published port.
-      AUTH_JWKS_URL: http://auth:3001/api/auth/jwks
+      AUTH_JWKS_URL: http://auth:3010/api/auth/jwks
     ports:
       - "8080:8080"
     depends_on:
