@@ -1,0 +1,80 @@
+# Self-hosting. Nothing is built: every image is pulled.
+#
+#   curl -O https://raw.githubusercontent.com/FredrikHillbert/nexus/master/docker-compose.production.yml
+#   docker compose -f docker-compose.production.yml up -d
+#
+# Three settings are required. Put them in a .env beside this file, or in your
+# platform's environment tab:
+#
+#   APP_URL=https://icc.example.com
+#   AUTH_SECRET=          # openssl rand -hex 32
+#   POSTGRES_PASSWORD=
+#
+# Set IMAGE_TAG to pin a release instead of tracking latest.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: integration_observability
+    volumes:
+      # Postgres 18 images expect the mount at /var/lib/postgresql, not at
+      # /var/lib/postgresql/data as 17 and earlier did: data now lives in a
+      # version-specific subdirectory so pg_upgrade can work across it.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d integration_observability"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  auth:
+    image: ghcr.io/fredrikhillbert/nexus-auth:${IMAGE_TAG:-latest}
+    environment:
+      # Identity keeps its own schema of this database, created on first boot.
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/integration_observability
+      APP_URL: ${APP_URL:?set APP_URL}
+      AUTH_AUDIENCE: integration-observability-api
+      # Generate one with: openssl rand -hex 32
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      PORT: "3010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/fredrikhillbert/nexus-api:${IMAGE_TAG:-latest}
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/integration_observability
+      HOST: 0.0.0.0
+      PORT: "8080"
+      RUST_LOG: ${RUST_LOG:-integration_api=info,warn}
+      APP_URL: ${APP_URL}
+      AUTH_AUDIENCE: integration-observability-api
+      AUTH_JWKS_URL: http://auth:3010/api/auth/jwks
+      HEALTH_EVAL_INTERVAL_SECONDS: ${HEALTH_EVAL_INTERVAL_SECONDS:-60}
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-90}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/fredrikhillbert/nexus-web:${IMAGE_TAG:-latest}
+    # The only service that needs a public address. It serves the app and
+    # reverse-proxies /api/v1 and /api/auth to the two above, so the browser
+    # sees one origin and there is one domain to configure.
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:

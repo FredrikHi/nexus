@@ -1,0 +1,64 @@
+# Builds and publishes the three service images to GitHub Container Registry,
+# so self-hosting is a compose file that pulls rather than a repository that
+# compiles. Building Rust on the box you are deploying to is what makes a
+# small VPS feel like a bad idea.
+name: Publish images
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      # One failing image should not cancel the other two.
+      fail-fast: false
+      matrix:
+        service: [api, auth, web]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Container registries reject uppercase in image names, and GitHub
+      # repository names keep their case.
+      - id: repo
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+
+      # arm64 matters here: a lot of the cheap hosts people self-host on are
+      # ARM. It is emulated, so the Rust image is the slow one to build.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.repo.outputs.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./apps/${{ matrix.service }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Scoped per service, or the three would evict each other's layers.
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}

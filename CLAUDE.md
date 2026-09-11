@@ -68,7 +68,7 @@ not already present). This file is the working summary.
 ### Tech stack
 
 - **Backend:** Rust, Axum 0.8, Tokio, SQLx 0.8 (Postgres), Serde, tracing,
-  PostgreSQL 16.
+  PostgreSQL 18.
 - **Frontend:** React 19, TypeScript, Vite, Tailwind v4, TanStack Query, React
   Router 7. (I know this side well — keep explanations light here.)
 - **Infra:** Docker + docker-compose for local; self-hosted Coolify for
