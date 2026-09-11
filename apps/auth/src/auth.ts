@@ -19,7 +19,7 @@ function optional(name: string): string | undefined {
   return value && value.length > 0 ? value : undefined;
 }
 
-const baseURL = process.env.AUTH_BASE_URL ?? "http://localhost:3001";
+const baseURL = process.env.AUTH_BASE_URL ?? "http://localhost:3010";
 
 /**
  * Google is configured only when credentials are present, so a self-hoster who

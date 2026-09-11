@@ -31,10 +31,14 @@ the UI does not touch the code reporting against it.
 
 ## Wiring it into Fastify
 
+`initObservability` returns the live instance. Importing `observability` is
+fine at a call site, because the import is a live binding — but destructuring
+it out of the module before init captures the inert placeholder, which queues
+nothing and flushes nothing. In a script, keep what init hands back.
+
 ```ts
 // src/plugins/observability.ts
 import fp from 'fastify-plugin'
-import { randomUUID } from 'node:crypto'
 import { initObservability, observability } from '../lib/observability'
 
 export default fp(async (fastify) => {
@@ -49,7 +53,7 @@ export default fp(async (fastify) => {
   // One trace per request. Everything tracked beneath it correlates without
   // any call site having to know the trace exists.
   fastify.addHook('onRequest', (request, _reply, done) => {
-    observability.withTrace(request.id ?? randomUUID(), done)
+    observability.withTrace(request.id, done)
   })
 
   fastify.addHook('onClose', async () => {
@@ -95,8 +99,47 @@ export const prisma = new PrismaClient().$extends({
 ```
 
 Do the same at the other boundaries: `src/lib/object-storage.ts` for S3,
-`sendEmail` in `src/lib/utils.ts` for Resend, `src/lib/stripe-helpers.ts`,
-`src/lib/push-notification.ts`, `src/lib/revenuecat.ts` and `src/lib/redis.ts`.
+`sendEmail` in `src/lib/utils.ts` for Resend, `src/lib/push-notification.ts`,
+`src/lib/revenuecat.ts` and `src/lib/redis.ts`.
+
+## Two things worth knowing before you wrap
+
+**A client that resolves on failure needs the check inside the wrapper.**
+Resend returns `{ error }` rather than throwing, Expo answers 200 with an error
+ticket, and `fetch` resolves happily on a 500. Wrapping only the call records
+every one of those as a success. Throw inside the tracked function and catch it
+immediately after, and the recorded outcome is right while the surrounding
+control flow is untouched. Put `status` on the error you throw: it is what
+separates a refusal from an outage.
+
+**Some SDKs already report.** Stripe emits a `response` event carrying the
+method, path, status and elapsed time for every request it completes, so one
+listener covers every call site and nothing can be forgotten later:
+
+```ts
+stripe.on('response', (event) => {
+  observability.record({
+    integration_id: INTEGRATIONS.PAYMENTS_STRIPE,
+    status: event.status >= 500 ? 'FAILURE' : event.status >= 400 ? 'REJECTED' : 'SUCCESS',
+    status_code: event.status,
+    duration_ms: event.elapsed,
+    operation: `${event.method} ${event.path}`,
+  })
+})
+```
+
+Its blind spot is a request that never got a response: a dropped connection
+raises an error without emitting anything, so those show up as a gap rather
+than a failure.
+
+## Model a fallback as two integrations, not one
+
+Where a primary provider fails over to a second one, report each leg against
+its own integration. Cookly's text prompts go to Groq and fall back to OpenAI
+on a 429, which is the normal working state rather than an incident. One shared
+number would average the two into an outage on nothing in particular; two show
+Groq shedding load and OpenAI absorbing it, which is what you actually want to
+see.
 
 ## How outcomes are decided
 

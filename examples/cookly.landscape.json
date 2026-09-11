@@ -8,6 +8,8 @@
       "description": "Fastify backend. Everything below hangs off it.",
       "components": [
         { "name": "Recipe Extraction", "type": "SERVICE" },
+        { "name": "Recipe Parse Text", "type": "SERVICE" },
+        { "name": "Recipe Scan", "type": "SERVICE" },
         { "name": "Meal Scan", "type": "SERVICE" },
         { "name": "Nutrition Estimate", "type": "SERVICE" },
         { "name": "Recipe Tagging", "type": "SERVICE" },
@@ -36,10 +38,24 @@
       "components": [{ "name": "Redis", "type": "DATABASE" }]
     },
     {
+      "name": "Groq",
+      "type": "EXTERNAL_SERVICE",
+      "criticality": "CRITICAL",
+      "description": "Primary LLM for text work. Thin on_demand rate limits, so it fails over to OpenAI.",
+      "components": [
+        { "name": "Chat Completions", "type": "API" },
+        { "name": "Audio Transcriptions", "type": "API" }
+      ]
+    },
+    {
       "name": "OpenAI",
       "type": "EXTERNAL_SERVICE",
       "criticality": "CRITICAL",
-      "components": [{ "name": "Chat Completions", "type": "API" }]
+      "description": "Vision work primary; text fallback when Groq refuses.",
+      "components": [
+        { "name": "Chat Completions", "type": "API" },
+        { "name": "Audio Transcriptions", "type": "API" }
+      ]
     },
     {
       "name": "Stripe",
@@ -73,24 +89,54 @@
     }
   ],
   "integrations": [
-    { "name": "Recipe Extraction to OpenAI", "constant": "RECIPE_EXTRACTION_OPENAI",
-      "from": "Cookly API/Recipe Extraction", "to": "OpenAI/Chat Completions",
+    { "name": "Recipe Extraction to Groq", "constant": "RECIPE_EXTRACTION_GROQ",
+      "from": "Cookly API/Recipe Extraction", "to": "Groq/Chat Completions",
       "type": "REST_API", "criticality": "CRITICAL" },
+
+    { "name": "Recipe Parse Text to Groq", "constant": "PARSE_TEXT_GROQ",
+      "from": "Cookly API/Recipe Parse Text", "to": "Groq/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Recipe Parse Text to OpenAI", "constant": "PARSE_TEXT_OPENAI",
+      "from": "Cookly API/Recipe Parse Text", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+
+    { "name": "Recipe Scan to Groq", "constant": "RECIPE_SCAN_GROQ",
+      "from": "Cookly API/Recipe Scan", "to": "Groq/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Recipe Scan to OpenAI", "constant": "RECIPE_SCAN_OPENAI",
+      "from": "Cookly API/Recipe Scan", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+
+    { "name": "Recipe Tagging to Groq", "constant": "RECIPE_TAGGING_GROQ",
+      "from": "Cookly API/Recipe Tagging", "to": "Groq/Chat Completions",
+      "type": "REST_API", "criticality": "LOW" },
+
+    { "name": "Bruno to Groq", "constant": "BRUNO_GROQ",
+      "from": "Cookly API/Bruno Assistant", "to": "Groq/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Bruno to OpenAI", "constant": "BRUNO_OPENAI",
+      "from": "Cookly API/Bruno Assistant", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Bruno Vision to OpenAI", "constant": "BRUNO_VISION_OPENAI",
+      "from": "Cookly API/Bruno Assistant", "to": "OpenAI/Chat Completions",
+      "type": "REST_API", "criticality": "HIGH" },
+    { "name": "Bruno Transcribe to Groq", "constant": "BRUNO_TRANSCRIBE_GROQ",
+      "from": "Cookly API/Bruno Assistant", "to": "Groq/Audio Transcriptions",
+      "type": "REST_API", "criticality": "MEDIUM" },
+    { "name": "Bruno Transcribe to OpenAI", "constant": "BRUNO_TRANSCRIBE_OPENAI",
+      "from": "Cookly API/Bruno Assistant", "to": "OpenAI/Audio Transcriptions",
+      "type": "REST_API", "criticality": "MEDIUM" },
+
     { "name": "Meal Scan to OpenAI", "constant": "MEAL_SCAN_OPENAI",
       "from": "Cookly API/Meal Scan", "to": "OpenAI/Chat Completions",
       "type": "REST_API", "criticality": "HIGH" },
     { "name": "Nutrition Estimate to OpenAI", "constant": "NUTRITION_ESTIMATE_OPENAI",
       "from": "Cookly API/Nutrition Estimate", "to": "OpenAI/Chat Completions",
       "type": "REST_API", "criticality": "MEDIUM" },
-    { "name": "Recipe Tagging to OpenAI", "constant": "RECIPE_TAGGING_OPENAI",
-      "from": "Cookly API/Recipe Tagging", "to": "OpenAI/Chat Completions",
-      "type": "REST_API", "criticality": "LOW" },
     { "name": "Shopping Categorize to OpenAI", "constant": "SHOPPING_CATEGORIZE_OPENAI",
       "from": "Cookly API/Shopping Categorize", "to": "OpenAI/Chat Completions",
       "type": "REST_API", "criticality": "MEDIUM" },
-    { "name": "Bruno to OpenAI", "constant": "BRUNO_OPENAI",
-      "from": "Cookly API/Bruno Assistant", "to": "OpenAI/Chat Completions",
-      "type": "REST_API", "criticality": "HIGH" },
+
     { "name": "Payments to Stripe", "constant": "PAYMENTS_STRIPE",
       "from": "Cookly API/Payments", "to": "Stripe/Stripe API",
       "type": "REST_API", "criticality": "CRITICAL" },

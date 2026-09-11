@@ -20,7 +20,7 @@ services:
     build: ./apps/auth
     environment:
       AUTH_DATABASE_URL: postgres://postgres:postgres@postgres:5432/integration_observability_auth
-      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:3001}
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:3010}
       AUTH_AUDIENCE: integration-observability-api
       AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-http://localhost:5173}
       # Required. Generate one with: openssl rand -hex 32
@@ -28,9 +28,11 @@ services:
       # Optional: sign-in with Google is offered only when both are present.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      PORT: "3001"
+      PORT: "3010"
     ports:
-      - "3001:3001"
+      # 3001 is deliberately avoided: it is a common default for an app being
+      # observed (Cookly uses it), and both have to run at the same time.
+      - "3010:3010"
     depends_on:
       postgres:
         condition: service_healthy

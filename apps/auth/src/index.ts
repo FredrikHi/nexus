@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./auth.js";
 
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(process.env.PORT ?? 3010);
 const handler = toNodeHandler(auth);
 
 const server = createServer((req, res) => {

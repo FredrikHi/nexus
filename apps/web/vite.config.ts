@@ -11,7 +11,7 @@ export default defineConfig({
     // or third-party-cookie problems exist in development.
     // More specific prefix first: /api/auth must not fall through to the API.
     proxy: {
-      '/api/auth': 'http://localhost:3001',
+      '/api/auth': 'http://localhost:3010',
       '/api/v1': 'http://localhost:8080',
     },
   },

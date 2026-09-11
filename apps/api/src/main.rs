@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     // audience every token must claim. Read once at startup like everything
     // else, so changing them needs a restart.
     let auth_issuer = std::env::var("AUTH_ISSUER")
-        .unwrap_or_else(|_| "http://localhost:3001".to_string());
+        .unwrap_or_else(|_| "http://localhost:3010".to_string());
     let auth_audience = std::env::var("AUTH_AUDIENCE")
         .unwrap_or_else(|_| "integration-observability-api".to_string());
     let jwks_url = std::env::var("AUTH_JWKS_URL")
