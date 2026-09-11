@@ -57,6 +57,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # deploy needs no manual migration step. Set AUTH_SKIP_MIGRATIONS=true to skip.
 ENTRYPOINT ["sh", "docker-entrypoint.sh"]
 
-# Configuration comes from the environment in a container, so the .env file is
-# optional rather than required.
-CMD ["node", "--env-file-if-exists=.env", "--import", "tsx", "src/index.ts"]
+# Configuration comes from the environment in a container. Deliberately no
+# --env-file-if-exists: it prints a "not found" line on every start, which
+# reads like a failure to someone deploying this for the first time.
+CMD ["node", "--import", "tsx", "src/index.ts"]

@@ -19,7 +19,42 @@ function optional(name: string): string | undefined {
   return value && value.length > 0 ? value : undefined;
 }
 
-const baseURL = process.env.AUTH_BASE_URL ?? "http://localhost:3010";
+/**
+ * Schema names are sent to Postgres as connection startup options, which are
+ * plain text with no placeholders. Validate rather than escape.
+ */
+function identifier(name: string): string {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    throw new Error(`AUTH_SCHEMA must be a plain identifier, got "${name}"`);
+  }
+  return name;
+}
+
+/**
+ * Identity lives in its own schema of the same database the API uses.
+ *
+ * A schema rather than a second database because `CREATE SCHEMA` is available
+ * to any owner, while `CREATE DATABASE` needs a privilege that several managed
+ * Postgres providers never hand out. The boundary is still real: `auth.user`
+ * and `public.users` cannot collide, and access to one can be revoked without
+ * touching the other.
+ *
+ * Setting AUTH_DATABASE_URL puts identity in a separate database instead. You
+ * then have to create that database yourself.
+ */
+const separateDatabase = optional("AUTH_DATABASE_URL");
+export const authDatabaseUrl = separateDatabase ?? required("DATABASE_URL");
+export const authSchema = identifier(
+  process.env.AUTH_SCHEMA ?? (separateDatabase ? "public" : "auth"),
+);
+
+/**
+ * The one public origin the whole product is served from. nginx puts the API
+ * and this service behind it, so there is a single domain to configure and a
+ * single origin the browser ever sees.
+ */
+const appUrl = (process.env.APP_URL ?? "http://localhost:5173").replace(/[/]+$/, "");
+const baseURL = process.env.AUTH_BASE_URL ?? appUrl;
 
 /**
  * Google is configured only when credentials are present, so a self-hoster who
@@ -29,9 +64,15 @@ const googleId = optional("GOOGLE_CLIENT_ID");
 const googleSecret = optional("GOOGLE_CLIENT_SECRET");
 
 export const auth = betterAuth({
-  // Its own database. The Rust API never reads these tables: it trusts signed
-  // tokens instead, which is what keeps identity swappable.
-  database: new Pool({ connectionString: required("AUTH_DATABASE_URL") }),
+  // The Rust API never reads these tables: it trusts signed tokens instead,
+  // which is what keeps identity swappable.
+  database: new Pool({
+    connectionString: authDatabaseUrl,
+    // Scopes every statement to the schema above, including the tables the
+    // migrator creates. pg_catalog is always searched implicitly, so the
+    // built-ins still resolve.
+    options: `-c search_path=${authSchema}`,
+  }),
 
   baseURL,
   secret: required("AUTH_SECRET"),
@@ -48,11 +89,15 @@ export const auth = betterAuth({
       ? { google: { clientId: googleId, clientSecret: googleSecret } }
       : {},
 
-  // The browser talks to the API on a different origin in development.
-  trustedOrigins: (process.env.AUTH_TRUSTED_ORIGINS ?? "http://localhost:5173")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean),
+  // APP_URL is always trusted, since that is where the app is served from.
+  // AUTH_TRUSTED_ORIGINS adds to it, for a second domain or a native client.
+  trustedOrigins: [
+    appUrl,
+    ...(process.env.AUTH_TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ],
 
   plugins: [
     jwt({

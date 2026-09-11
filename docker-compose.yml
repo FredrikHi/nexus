@@ -1,15 +1,31 @@
+# The whole product, in the shape it is meant to be deployed in.
+#
+#   docker compose up
+#
+# brings up Postgres, identity, the API and the web app, with the web
+# container reverse-proxying the other two so the browser only ever sees one
+# origin. That is also what a Coolify deployment consumes unchanged.
+#
+# For the development loop, start only what you are not editing:
+#
+#   docker compose up postgres auth
+#   cd apps/api && cargo run
+#   cd apps/web && npm run dev
+#
+# Three settings are worth providing in a .env next to this file. Everything
+# else has a working default: see .env.example.
 services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: integration_observability
-    ports:
-      - "5433:5432"            # host 5433 -> container 5432 (avoids Cookly's 5432)
+    # Not published. Nothing outside this network has any business reaching
+    # the database, and a published port on a public host is reachable from
+    # the internet unless a firewall says otherwise. The development override
+    # publishes it.
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Creates the auth service's separate database on first initialisation.
-      - ./infra/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d integration_observability"]
       interval: 5s
@@ -19,20 +35,21 @@ services:
   auth:
     build: ./apps/auth
     environment:
-      AUTH_DATABASE_URL: postgres://postgres:postgres@postgres:5432/integration_observability_auth
-      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:3010}
+      # Identity keeps its own schema of this database, created on first boot.
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/integration_observability
+      APP_URL: ${APP_URL:-http://localhost:5173}
       AUTH_AUDIENCE: integration-observability-api
-      AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-http://localhost:5173}
       # Required. Generate one with: openssl rand -hex 32
-      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      #
+      # Deliberately not `:?`, which would make EVERY compose command fail,
+      # including `docker compose up postgres`. The service validates it at
+      # startup instead and says so plainly in its own log.
+      AUTH_SECRET: ${AUTH_SECRET:-}
       # Optional: sign-in with Google is offered only when both are present.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       PORT: "3010"
-    ports:
-      # 3001 is deliberately avoided: it is a common default for an app being
-      # observed (Cookly uses it), and both have to run at the same time.
-      - "3010:3010"
+    # Reached by the web container at auth:3010 over the private network.
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,33 +57,38 @@ services:
   api:
     build: ./apps/api
     environment:
-      # Inside the compose network the DB is reached by service name "postgres".
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/integration_observability
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/integration_observability
       HOST: 0.0.0.0
       PORT: "8080"
-      RUST_LOG: integration_api=debug,tower_http=debug,info
-      # Who tokens must be issued by, and for. Both are checked on every
-      # request: a valid signature is not enough if the token was minted for
-      # a different application.
-      AUTH_ISSUER: ${AUTH_BASE_URL:-http://localhost:3010}
+      RUST_LOG: ${RUST_LOG:-integration_api=info,warn}
+      # Tokens must be issued by this origin, and minted for this audience.
+      APP_URL: ${APP_URL:-http://localhost:5173}
       AUTH_AUDIENCE: integration-observability-api
-      # Reached over the compose network rather than the published port.
+      # Public keys come over the private network rather than the public
+      # domain, so token validation survives a proxy outage.
       AUTH_JWKS_URL: http://auth:3010/api/auth/jwks
-    ports:
-      - "8080:8080"
+      HEALTH_EVAL_INTERVAL_SECONDS: ${HEALTH_EVAL_INTERVAL_SECONDS:-60}
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-90}
+    # Reached by the web container at api:8080. Clients outside the host send
+    # telemetry through the public domain instead, which nginx proxies here.
     depends_on:
       postgres:
         condition: service_healthy
       auth:
-        condition: service_started   # wait until the DB passes its healthcheck
+        condition: service_started
 
   web:
     build: ./apps/web
+    # API_UPSTREAM and AUTH_UPSTREAM default to these service names inside the
+    # image, so nothing needs setting here.
+    #
+    # The only service that needs a public address. It serves the app and
+    # reverse-proxies /api/v1 and /api/auth to the two above, so the browser
+    # sees one origin and there is one domain to configure.
     ports:
-      - "5173:80"
+      - "${WEB_PORT:-5173}:80"
     depends_on:
       - api
-    profiles: ["full"]               # only starts with: docker compose --profile full up
 
 volumes:
   pgdata:

@@ -10,7 +10,7 @@ if [ "${AUTH_SKIP_MIGRATIONS:-false}" = "true" ]; then
   echo "entrypoint: AUTH_SKIP_MIGRATIONS=true, leaving the schema alone"
 else
   echo "entrypoint: applying auth migrations"
-  node --env-file-if-exists=.env --import tsx src/migrate.ts
+  node --import tsx src/migrate.ts
 fi
 
 # exec: replace this shell with the service, so it becomes PID 1 and receives

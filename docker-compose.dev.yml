@@ -1,0 +1,16 @@
+# Development override: publishes the two services the local loop talks to
+# directly, which the production stack deliberately keeps off the host.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up postgres auth
+#
+# then run the API with `cargo run` and the web app with `npm run dev`.
+services:
+  postgres:
+    ports:
+      - "5433:5432"    # host 5433 -> container 5432, avoiding a local 5432
+
+  auth:
+    ports:
+      # 3001 is deliberately avoided: it is a common default for an
+      # application being observed, and both have to run at the same time.
+      - "3010:3010"

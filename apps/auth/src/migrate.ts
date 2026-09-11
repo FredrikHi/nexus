@@ -1,5 +1,6 @@
 /**
- * Applies the Better Auth schema to AUTH_DATABASE_URL, then exits.
+ * Creates the auth schema if it is missing, applies the Better Auth schema
+ * into it, then exits.
  *
  * This is the same work `@better-auth/cli migrate` does, called directly
  * instead. Two reasons: the CLI is published on its own release train (1.4.x
@@ -13,7 +14,7 @@
  */
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
-import { auth } from "./auth.js";
+import { auth, authDatabaseUrl, authSchema } from "./auth.js";
 
 // An arbitrary but fixed key. Two instances starting at once must not both try
 // to create the same tables, so the loser waits here and then finds nothing to
@@ -21,11 +22,16 @@ import { auth } from "./auth.js";
 const MIGRATION_LOCK_KEY = 4_919_3010;
 
 async function main(): Promise<void> {
-  const pool = new Pool({ connectionString: process.env.AUTH_DATABASE_URL });
+  const pool = new Pool({ connectionString: authDatabaseUrl });
   const lock = await pool.connect();
 
   try {
     await lock.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_KEY]);
+
+    // Under the lock, so two instances starting together cannot race here.
+    // The schema name is validated as an identifier in auth.ts; CREATE SCHEMA
+    // takes no parameters, so it has to be interpolated.
+    await lock.query(`CREATE SCHEMA IF NOT EXISTS "${authSchema}"`);
 
     const { toBeCreated, toBeAdded, runMigrations } = await getMigrations(auth.options);
 
@@ -37,7 +43,8 @@ async function main(): Promise<void> {
     const created = toBeCreated.map((t) => t.table).join(", ");
     const altered = toBeAdded.map((t) => t.table).join(", ");
     console.log(
-      `applying auth migrations: create [${created || "none"}], alter [${altered || "none"}]`,
+      `applying auth migrations to schema "${authSchema}": ` +
+        `create [${created || "none"}], alter [${altered || "none"}]`,
     );
 
     await runMigrations();

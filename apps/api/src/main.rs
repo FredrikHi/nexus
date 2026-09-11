@@ -62,15 +62,27 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
         "postgres://postgres:postgres@localhost:5432/integration_observability".to_string()
     });
-    // Where the auth service publishes its public keys, and the issuer and
-    // audience every token must claim. Read once at startup like everything
-    // else, so changing them needs a restart.
-    let auth_issuer = std::env::var("AUTH_ISSUER")
-        .unwrap_or_else(|_| "http://localhost:3010".to_string());
+    // The single public origin the product is served from. The web container
+    // reverse-proxies this API and the auth service behind it, so one domain
+    // configures everything a browser touches.
+    let app_url = std::env::var("APP_URL")
+        .unwrap_or_else(|_| "http://localhost:5173".to_string())
+        .trim_end_matches('/')
+        .to_string();
+
+    // The issuer and audience every token must claim. Both are checked on
+    // every request: a valid signature is not enough if the token was minted
+    // somewhere else, or for something else.
+    let auth_issuer = std::env::var("AUTH_ISSUER").unwrap_or_else(|_| app_url.clone());
     let auth_audience = std::env::var("AUTH_AUDIENCE")
         .unwrap_or_else(|_| "integration-observability-api".to_string());
+
+    // Public keys are fetched over the private network, not through the public
+    // domain, so key rotation keeps working even when the proxy in front is
+    // having a bad day. This default is the local dev address; in compose it
+    // is the auth service's name.
     let jwks_url = std::env::var("AUTH_JWKS_URL")
-        .unwrap_or_else(|_| format!("{auth_issuer}/api/auth/jwks"));
+        .unwrap_or_else(|_| "http://localhost:3010/api/auth/jwks".to_string());
 
     let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
