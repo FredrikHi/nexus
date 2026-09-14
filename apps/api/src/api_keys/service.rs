@@ -48,7 +48,10 @@ pub async fn create(
     .await?;
 
     // The only moment the plaintext leaves this process.
-    Ok(CreatedApiKey { key, token: generated.token })
+    Ok(CreatedApiKey {
+        key,
+        token: generated.token,
+    })
 }
 
 pub async fn revoke(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<ApiKey, ApiError> {

@@ -37,7 +37,11 @@ pub fn generate() -> Result<GeneratedToken, SysError> {
     let prefix = token.chars().take(DISPLAY_PREFIX_LEN).collect();
     let token_hash = hash(&token);
 
-    Ok(GeneratedToken { token, prefix, token_hash })
+    Ok(GeneratedToken {
+        token,
+        prefix,
+        token_hash,
+    })
 }
 
 /// SHA-256, hex encoded. Lookups are by this value, so the raw token never
@@ -76,7 +80,11 @@ mod tests {
     #[test]
     fn hash_is_stable_and_not_the_token() {
         let g = generate().expect("rng available");
-        assert_eq!(hash(&g.token), g.token_hash, "hashing must be deterministic");
+        assert_eq!(
+            hash(&g.token),
+            g.token_hash,
+            "hashing must be deterministic"
+        );
         assert!(!g.token_hash.contains(&g.token));
         assert_eq!(g.token_hash.len(), 64, "sha256 hex is 64 chars");
     }

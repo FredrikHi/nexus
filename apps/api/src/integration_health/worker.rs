@@ -38,7 +38,10 @@ impl WorkerConfig {
             .unwrap_or(90)
             .max(1);
 
-        WorkerConfig { interval: Duration::from_secs(interval_secs), retention_days }
+        WorkerConfig {
+            interval: Duration::from_secs(interval_secs),
+            retention_days,
+        }
     }
 }
 
@@ -130,11 +133,10 @@ async fn evaluate_and_prune(
 
     let mut summary = format!(
         "evaluated {} integrations, {} changed status; incidents +{} ~{} -{}",
-        result.evaluated, result.changed,
-        incidents.opened, incidents.escalated, incidents.resolved
+        result.evaluated, result.changed, incidents.opened, incidents.escalated, incidents.resolved
     );
 
-    let due = last_prune.map_or(true, |t| t.elapsed() >= PRUNE_EVERY);
+    let due = last_prune.is_none_or(|t| t.elapsed() >= PRUNE_EVERY);
     if due {
         let dropped = repository::prune_telemetry(db, config.retention_days).await?;
         *last_prune = Some(Instant::now());

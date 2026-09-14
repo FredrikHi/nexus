@@ -7,9 +7,7 @@ use uuid::Uuid;
 use crate::error::ApiError;
 
 use super::evaluator;
-use super::model::{
-    EvaluationResult, HealthStatus, HealthTransition, IntegrationHealth,
-};
+use super::model::{EvaluationResult, HealthStatus, HealthTransition, IntegrationHealth};
 use super::repository;
 
 const DEFAULT_TRANSITION_LIMIT: i64 = 50;
@@ -46,7 +44,10 @@ pub async fn evaluate(db: &PgPool, org_id: Uuid) -> Result<EvaluationResult, Api
         }
     }
 
-    Ok(EvaluationResult { evaluated: inputs.len(), changed })
+    Ok(EvaluationResult {
+        evaluated: inputs.len(),
+        changed,
+    })
 }
 
 /// Evaluates every organization on the platform.
@@ -55,7 +56,10 @@ pub async fn evaluate(db: &PgPool, org_id: Uuid) -> Result<EvaluationResult, Api
 /// many, and health that is only computed for whoever happens to be looking is
 /// not health at all.
 pub async fn evaluate_all(db: &PgPool) -> Result<EvaluationResult, ApiError> {
-    let mut total = EvaluationResult { evaluated: 0, changed: 0 };
+    let mut total = EvaluationResult {
+        evaluated: 0,
+        changed: 0,
+    };
 
     for org_id in crate::organizations::all_ids(db).await? {
         let result = evaluate(db, org_id).await?;
@@ -96,7 +100,9 @@ pub async fn transitions(
     integration_id: Uuid,
     limit: Option<i64>,
 ) -> Result<Vec<HealthTransition>, ApiError> {
-    let limit = limit.unwrap_or(DEFAULT_TRANSITION_LIMIT).clamp(1, MAX_TRANSITION_LIMIT);
+    let limit = limit
+        .unwrap_or(DEFAULT_TRANSITION_LIMIT)
+        .clamp(1, MAX_TRANSITION_LIMIT);
 
     repository::transitions(db, org_id, integration_id, limit)
         .await?
@@ -106,10 +112,7 @@ pub async fn transitions(
 }
 
 /// Counts of each status, for a dashboard header.
-pub async fn overview(
-    db: &PgPool,
-    org_id: Uuid,
-) -> Result<HashMap<&'static str, usize>, ApiError> {
+pub async fn overview(db: &PgPool, org_id: Uuid) -> Result<HashMap<&'static str, usize>, ApiError> {
     let mut counts: HashMap<&'static str, usize> = HashMap::new();
     for status in [
         HealthStatus::Healthy,

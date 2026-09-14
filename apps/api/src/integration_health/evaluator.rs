@@ -144,7 +144,10 @@ mod tests {
 
     #[test]
     fn clean_traffic_is_healthy() {
-        assert_eq!(status_of(measured(100, 0, Some(120.0))), HealthStatus::Healthy);
+        assert_eq!(
+            status_of(measured(100, 0, Some(120.0))),
+            HealthStatus::Healthy
+        );
     }
 
     #[test]
@@ -165,8 +168,14 @@ mod tests {
 
     #[test]
     fn latency_alone_can_degrade_a_error_free_integration() {
-        assert_eq!(status_of(measured(100, 0, Some(2_500.0))), HealthStatus::Degraded);
-        assert_eq!(status_of(measured(100, 0, Some(9_000.0))), HealthStatus::Unhealthy);
+        assert_eq!(
+            status_of(measured(100, 0, Some(2_500.0))),
+            HealthStatus::Degraded
+        );
+        assert_eq!(
+            status_of(measured(100, 0, Some(9_000.0))),
+            HealthStatus::Unhealthy
+        );
     }
 
     #[test]
@@ -183,7 +192,11 @@ mod tests {
         // One failure out of one call is a 100% error rate, and means nothing.
         let verdict = judge(&policy(), &measured(1, 1, None), Utc::now());
         assert_eq!(verdict.status, HealthStatus::Unknown);
-        assert!(verdict.reason.contains("needed to judge"), "{}", verdict.reason);
+        assert!(
+            verdict.reason.contains("needed to judge"),
+            "{}",
+            verdict.reason
+        );
     }
 
     #[test]
@@ -208,7 +221,11 @@ mod tests {
         };
         let verdict = judge(&policy(), &m, Utc::now());
         assert_eq!(verdict.status, HealthStatus::Unknown);
-        assert!(verdict.reason.contains("ever been recorded"), "{}", verdict.reason);
+        assert!(
+            verdict.reason.contains("ever been recorded"),
+            "{}",
+            verdict.reason
+        );
     }
 
     #[test]

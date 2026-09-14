@@ -24,8 +24,8 @@ use axum::{routing::get, Router};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use tower_http::trace::TraceLayer;
-use utoipa_swagger_ui::SwaggerUi;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa_swagger_ui::SwaggerUi;
 
 /// Shared application state handed to every request handler.
 /// `Clone` is cheap here: PgPool is an Arc-backed handle, so cloning
@@ -148,10 +148,7 @@ async fn main() -> anyhow::Result<()> {
         // Swagger UI at /swagger-ui, reading the document it serves at
         // /api-docs/openapi.json. The assets are vendored into the binary, so
         // neither the build nor the running process needs network access.
-        .merge(
-            SwaggerUi::new("/swagger-ui")
-                .url("/api-docs/openapi.json", openapi::spec()),
-        )
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", openapi::spec()))
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 

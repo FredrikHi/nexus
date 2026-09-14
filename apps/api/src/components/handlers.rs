@@ -30,7 +30,9 @@ pub async fn list(
     ctx: OrgContext,
     Query(params): Query<ListComponentsQuery>,
 ) -> Result<Json<Vec<Component>>, ApiError> {
-    Ok(Json(service::list(&state.db, ctx.organization_id, params.system_id).await?))
+    Ok(Json(
+        service::list(&state.db, ctx.organization_id, params.system_id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -49,7 +51,9 @@ pub async fn get(
     ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Component>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -96,7 +100,9 @@ pub async fn update(
     Json(body): Json<UpdateComponent>,
 ) -> Result<Json<Component>, ApiError> {
     ctx.require_write()?;
-    Ok(Json(service::update(&state.db, ctx.organization_id, id, body).await?))
+    Ok(Json(
+        service::update(&state.db, ctx.organization_id, id, body).await?,
+    ))
 }
 
 #[utoipa::path(

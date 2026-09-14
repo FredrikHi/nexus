@@ -53,7 +53,9 @@ pub async fn get(
     ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Integration>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -105,7 +107,9 @@ pub async fn update(
     Json(body): Json<UpdateIntegration>,
 ) -> Result<Json<Integration>, ApiError> {
     ctx.require_write()?;
-    Ok(Json(service::update(&state.db, ctx.organization_id, id, body).await?))
+    Ok(Json(
+        service::update(&state.db, ctx.organization_id, id, body).await?,
+    ))
 }
 
 #[utoipa::path(

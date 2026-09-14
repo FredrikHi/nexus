@@ -129,11 +129,7 @@ pub async fn members(db: &PgPool, team_id: Uuid) -> Result<Vec<TeamMember>, ApiE
 ///
 /// A team may only contain people who are already in the organization;
 /// otherwise a team would become a back door into a tenant.
-pub async fn is_org_member(
-    db: &PgPool,
-    org_id: Uuid,
-    user_id: Uuid,
-) -> Result<bool, ApiError> {
+pub async fn is_org_member(db: &PgPool, org_id: Uuid, user_id: Uuid) -> Result<bool, ApiError> {
     let exists = sqlx::query_scalar!(
         r#"SELECT EXISTS (
              SELECT 1 FROM organization_members

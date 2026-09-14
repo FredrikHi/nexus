@@ -115,8 +115,9 @@ pub struct IntegrationHealthRow {
 
 impl IntegrationHealthRow {
     pub fn into_domain(self) -> Result<IntegrationHealth, ApiError> {
-        let status = HealthStatus::from_db(&self.status)
-            .ok_or_else(|| ApiError::Internal(format!("unknown health status '{}'", self.status)))?;
+        let status = HealthStatus::from_db(&self.status).ok_or_else(|| {
+            ApiError::Internal(format!("unknown health status '{}'", self.status))
+        })?;
 
         Ok(IntegrationHealth {
             integration_id: self.integration_id,

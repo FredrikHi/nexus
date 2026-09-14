@@ -29,11 +29,7 @@ pub struct EventColumns {
 /// events is one round trip and one plan rather than 500 of each. This is the
 /// standard Postgres bulk-insert shape, and it is why the service transposes
 /// row-shaped input into column-shaped arrays first.
-pub async fn insert_batch(
-    db: &PgPool,
-    org_id: Uuid,
-    cols: &EventColumns,
-) -> Result<u64, ApiError> {
+pub async fn insert_batch(db: &PgPool, org_id: Uuid, cols: &EventColumns) -> Result<u64, ApiError> {
     let result = sqlx::query!(
         r#"INSERT INTO telemetry_events
              (organization_id, integration_id, environment_id, occurred_at, status,
@@ -104,6 +100,22 @@ pub async fn ensure_partitions(db: &PgPool, months_ahead: i32) -> Result<(), Api
     Ok(())
 }
 
+/// Every filter `list` accepts.
+///
+/// A struct rather than eight positional arguments: six of them are
+/// `Option`s, and two of those borrow strings from the request. The
+/// lifetime is there because the string filters are borrowed from the
+/// request rather than copied, and the struct may not outlive them.
+pub struct ListFilters<'a> {
+    pub integration_id: Option<Uuid>,
+    pub environment_id: Option<Uuid>,
+    pub status: Option<&'a str>,
+    pub trace_id: Option<&'a str>,
+    pub from: Option<DateTime<Utc>>,
+    pub to: Option<DateTime<Utc>>,
+    pub limit: i64,
+}
+
 /// Lists events newest-first, with every filter optional.
 ///
 /// Same `($n IS NULL OR ...)` shape used elsewhere, so one static statement
@@ -111,13 +123,7 @@ pub async fn ensure_partitions(db: &PgPool, months_ahead: i32) -> Result<(), Api
 pub async fn list(
     db: &PgPool,
     org_id: Uuid,
-    integration_id: Option<Uuid>,
-    environment_id: Option<Uuid>,
-    status: Option<&str>,
-    trace_id: Option<&str>,
-    from: Option<DateTime<Utc>>,
-    to: Option<DateTime<Utc>>,
-    limit: i64,
+    filters: ListFilters<'_>,
 ) -> Result<Vec<TelemetryEvent>, ApiError> {
     let rows = sqlx::query_as!(
         TelemetryEventRow,
@@ -135,18 +141,20 @@ pub async fn list(
            ORDER BY occurred_at DESC
            LIMIT $8"#,
         org_id,
-        integration_id,
-        environment_id,
-        status,
-        trace_id,
-        from,
-        to,
-        limit
+        filters.integration_id,
+        filters.environment_id,
+        filters.status,
+        filters.trace_id,
+        filters.from,
+        filters.to,
+        filters.limit
     )
     .fetch_all(db)
     .await?;
 
-    rows.into_iter().map(TelemetryEventRow::into_domain).collect()
+    rows.into_iter()
+        .map(TelemetryEventRow::into_domain)
+        .collect()
 }
 
 /// Aggregates a window in one pass.

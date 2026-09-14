@@ -128,7 +128,9 @@ pub async fn ingest(
     }
 
     let accepted = repository::insert_batch(db, auth.organization_id, &cols).await?;
-    Ok(IngestResult { accepted: accepted as usize })
+    Ok(IngestResult {
+        accepted: accepted as usize,
+    })
 }
 
 pub async fn list(
@@ -142,13 +144,15 @@ pub async fn list(
     repository::list(
         db,
         org_id,
-        query.integration_id,
-        query.environment_id,
-        query.status.map(|s| s.as_str()),
-        query.trace_id.as_deref(),
-        query.from,
-        query.to,
-        limit,
+        repository::ListFilters {
+            integration_id: query.integration_id,
+            environment_id: query.environment_id,
+            status: query.status.map(|s| s.as_str()),
+            trace_id: query.trace_id.as_deref(),
+            from: query.from,
+            to: query.to,
+            limit,
+        },
     )
     .await
 }
@@ -173,10 +177,7 @@ pub async fn summary(
     Ok(row.into_domain())
 }
 
-fn validate_window(
-    from: Option<DateTime<Utc>>,
-    to: Option<DateTime<Utc>>,
-) -> Result<(), ApiError> {
+fn validate_window(from: Option<DateTime<Utc>>, to: Option<DateTime<Utc>>) -> Result<(), ApiError> {
     if let (Some(from), Some(to)) = (from, to) {
         if to <= from {
             return Err(ApiError::Validation("to must be after from".to_string()));

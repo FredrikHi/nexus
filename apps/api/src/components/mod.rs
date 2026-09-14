@@ -20,7 +20,9 @@ pub fn router() -> Router<AppState> {
         )
         .route(
             "/api/v1/components/{id}",
-            get(handlers::get).patch(handlers::update).delete(handlers::delete),
+            get(handlers::get)
+                .patch(handlers::update)
+                .delete(handlers::delete),
         )
 }
 

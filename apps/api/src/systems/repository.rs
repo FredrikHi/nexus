@@ -35,11 +35,7 @@ pub async fn list_by_org(db: &PgPool, org_id: Uuid) -> Result<Vec<System>, ApiEr
 
 /// Scoped to an organization. Without that filter a caller could read another
 /// tenant's system simply by knowing its id.
-pub async fn find_by_id(
-    db: &PgPool,
-    org_id: Uuid,
-    id: Uuid,
-) -> Result<Option<System>, ApiError> {
+pub async fn find_by_id(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<Option<System>, ApiError> {
     let row = sqlx::query_as!(
         SystemRow,
         r#"SELECT id, organization_id, name, slug, description, system_type,
@@ -148,8 +144,8 @@ pub async fn delete(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<bool, ApiErro
         id,
         org_id
     )
-        .execute(db)
-        .await?;
+    .execute(db)
+    .await?;
 
     Ok(result.rows_affected() > 0)
 }

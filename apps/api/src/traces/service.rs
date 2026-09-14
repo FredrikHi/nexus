@@ -41,13 +41,11 @@ pub async fn list(
 /// The summary is fetched first so an unknown trace is a clean 404 rather than
 /// an empty span list, which would be indistinguishable from a trace whose
 /// events have aged out of retention.
-pub async fn get(
-    db: &PgPool,
-    org_id: Uuid,
-    trace_id: &str,
-) -> Result<TraceDetail, ApiError> {
+pub async fn get(db: &PgPool, org_id: Uuid, trace_id: &str) -> Result<TraceDetail, ApiError> {
     if trace_id.trim().is_empty() {
-        return Err(ApiError::Validation("trace_id must not be empty".to_string()));
+        return Err(ApiError::Validation(
+            "trace_id must not be empty".to_string(),
+        ));
     }
     let summary = repository::summary(db, org_id, trace_id)
         .await?

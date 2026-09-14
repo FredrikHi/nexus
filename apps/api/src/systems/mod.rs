@@ -14,10 +14,15 @@ use crate::AppState;
 /// Internals (model, dto, repository, service) stay private to this module.
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/systems", get(handlers::list).post(handlers::create))
+        .route(
+            "/api/v1/systems",
+            get(handlers::list).post(handlers::create),
+        )
         .route(
             "/api/v1/systems/{id}",
-            get(handlers::get).patch(handlers::update).delete(handlers::delete),
+            get(handlers::get)
+                .patch(handlers::update)
+                .delete(handlers::delete),
         )
 }
 

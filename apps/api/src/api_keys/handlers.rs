@@ -72,5 +72,7 @@ pub async fn revoke(
     Path(id): Path<Uuid>,
 ) -> Result<Json<ApiKey>, ApiError> {
     ctx.require_admin()?;
-    Ok(Json(service::revoke(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::revoke(&state.db, ctx.organization_id, id).await?,
+    ))
 }

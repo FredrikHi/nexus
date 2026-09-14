@@ -85,6 +85,32 @@ Public Repository, `https://github.com/FredrikHillbert/nexus`, Build Pack
 
 Use the *Application* resource type, not the *Docker Compose* service type.
 The service type stores only the file you paste, with no repository beside it.
+A private repository needs a GitHub App source connected first; a public one
+needs only its URL.
+
+Also set `WEB_PORT` to something nothing else on that host is using. The
+compose file publishes a host port so a plain `docker compose up` on a bare
+VPS works, but on a server already running other things the default collides
+and the deploy fails with `Bind for 0.0.0.0:8080 failed: port is already
+allocated`. Coolify's proxy reaches the container over the Docker network, so
+that published port is only there for direct access and you can drop the
+`ports:` entry once the domain is attached.
+
+### Image visibility
+
+Images published from a private repository are private, and a private image
+fails the deploy with `denied` on the manifest. GHCR returns the same `denied`
+whether an image is private or absent, so check both: that the **Publish
+images** workflow actually ran, and that each of the three packages is set to
+Public under your GitHub packages settings.
+
+To keep them private instead, give the deployment host a pull credential:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <your-github-user> --password-stdin
+```
+
+with a token carrying `read:packages`.
 
 ### Settings
 
@@ -96,7 +122,7 @@ Three matter. Everything else has a working default.
 | `AUTH_SECRET` | none, required | Signs sessions and tokens. Changing it signs everyone out. |
 | `POSTGRES_PASSWORD` | none, required | |
 | `IMAGE_TAG` | `latest` | Pin a release instead of tracking latest. |
-| `WEB_PORT` | `8080` | Host port the web container publishes on. |
+| `WEB_PORT` | `8080` | Host port the web container publishes on. Change it if something already holds that port. |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | empty | Google sign-in appears only when both are set. Redirect URI is `<APP_URL>/api/auth/callback/google`. |
 | `TELEMETRY_RETENTION_DAYS` | `90` | Older telemetry has its whole monthly partition dropped. |
 | `HEALTH_EVAL_INTERVAL_SECONDS` | `60` | How often health is re-derived. |
@@ -174,6 +200,31 @@ drops it afterwards.
 Both application services migrate themselves on start under an advisory lock,
 so a deploy never needs a manual step and two instances starting at once is
 safe.
+
+## Contributing
+
+Work happens on a branch and lands through a pull request. Five checks have to
+be green: the Rust suite with formatting and clippy as errors, the web build
+and lint, and a typecheck of the auth service and the Node client.
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org),
+because the version is computed from them rather than chosen by hand:
+
+| Prefix | Effect |
+| --- | --- |
+| `fix:` | Patch release, 1.2.3 to 1.2.4 |
+| `feat:` | Minor release, 1.2.3 to 1.3.0 |
+| `feat!:` or a `BREAKING CHANGE:` footer | Major release, 1.2.3 to 2.0.0 |
+| `chore:`, `docs:`, `refactor:`, `test:` | No release |
+
+CI checks the pull request title rather than each commit, because a squash
+merge uses the title as the commit message. That title is what decides the
+next version.
+
+Merging to the default branch tags the release, writes the notes from the
+commits, and publishes images tagged with the new version alongside `latest`.
+A merge that releases nothing publishes nothing, so `latest` always points at
+the most recent release rather than the most recent commit.
 
 ## License
 

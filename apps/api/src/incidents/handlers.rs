@@ -26,7 +26,9 @@ pub async fn list(
     ctx: OrgContext,
     Query(params): Query<ListIncidentsQuery>,
 ) -> Result<Json<Vec<Incident>>, ApiError> {
-    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
+    Ok(Json(
+        service::list(&state.db, ctx.organization_id, params).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -45,7 +47,9 @@ pub async fn get(
     ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<IncidentDetail>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -126,5 +130,7 @@ pub async fn reconcile(
     // The same pass the worker runs after each evaluation, scoped to the
     // caller's own tenant. Idempotent, so calling it by hand is safe.
     ctx.require_write()?;
-    Ok(Json(service::reconcile(&state.db, ctx.organization_id).await?))
+    Ok(Json(
+        service::reconcile(&state.db, ctx.organization_id).await?,
+    ))
 }

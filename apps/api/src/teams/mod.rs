@@ -15,7 +15,9 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/teams", get(handlers::list).post(handlers::create))
         .route(
             "/api/v1/teams/{id}",
-            get(handlers::get).patch(handlers::update).delete(handlers::delete),
+            get(handlers::get)
+                .patch(handlers::update)
+                .delete(handlers::delete),
         )
         .route(
             "/api/v1/teams/{id}/members",
@@ -29,8 +31,14 @@ pub fn router() -> Router<AppState> {
 
 #[derive(OpenApi)]
 #[openapi(paths(
-    handlers::list, handlers::create, handlers::get, handlers::update,
-    handlers::delete, handlers::members, handlers::add_member, handlers::remove_member,
+    handlers::list,
+    handlers::create,
+    handlers::get,
+    handlers::update,
+    handlers::delete,
+    handlers::members,
+    handlers::add_member,
+    handlers::remove_member,
 ))]
 struct TeamsApi;
 

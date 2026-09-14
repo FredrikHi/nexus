@@ -53,8 +53,21 @@ export const authSchema = identifier(
  * and this service behind it, so there is a single domain to configure and a
  * single origin the browser ever sees.
  */
-const appUrl = (process.env.APP_URL ?? "http://localhost:5173").replace(/[/]+$/, "");
+export const appUrl = (process.env.APP_URL ?? "http://localhost:5173").replace(/[/]+$/, "");
 const baseURL = process.env.AUTH_BASE_URL ?? appUrl;
+
+/**
+ * Exported so startup can print them. A mismatch between APP_URL and the
+ * address the browser actually uses rejects every sign-in with a bare
+ * "Invalid origin", which says nothing about what would have been accepted.
+ */
+export const trustedOrigins = [
+  appUrl,
+  ...(process.env.AUTH_TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
+];
 
 /**
  * Google is configured only when credentials are present, so a self-hoster who
@@ -91,13 +104,7 @@ export const auth = betterAuth({
 
   // APP_URL is always trusted, since that is where the app is served from.
   // AUTH_TRUSTED_ORIGINS adds to it, for a second domain or a native client.
-  trustedOrigins: [
-    appUrl,
-    ...(process.env.AUTH_TRUSTED_ORIGINS ?? "")
-      .split(",")
-      .map((o) => o.trim())
-      .filter(Boolean),
-  ],
+  trustedOrigins,
 
   plugins: [
     jwt({

@@ -105,7 +105,9 @@ async fn first_evaluation_records_a_verdict_and_a_transition(pool: PgPool) {
     let i = seed_integration(&pool, "fresh", true).await;
     events(&pool, i, 20, 0).await;
 
-    let result = service::evaluate(&pool, DEFAULT_ORG).await.expect("evaluate");
+    let result = service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("evaluate");
     assert_eq!(result.evaluated, 1);
     assert_eq!(result.changed, 1, "the first verdict is itself a change");
 
@@ -113,9 +115,14 @@ async fn first_evaluation_records_a_verdict_and_a_transition(pool: PgPool) {
     assert_eq!(health.status, HealthStatus::Healthy);
     assert_eq!(health.event_count, 20);
 
-    let history = service::transitions(&pool, DEFAULT_ORG, i, None).await.expect("transitions");
+    let history = service::transitions(&pool, DEFAULT_ORG, i, None)
+        .await
+        .expect("transitions");
     assert_eq!(history.len(), 1);
-    assert_eq!(history[0].from_status, None, "nothing preceded the first verdict");
+    assert_eq!(
+        history[0].from_status, None,
+        "nothing preceded the first verdict"
+    );
     assert_eq!(history[0].to_status, HealthStatus::Healthy);
 }
 
@@ -127,15 +134,25 @@ async fn a_stable_status_appends_no_history_and_does_not_move_since(pool: PgPool
     let i = seed_integration(&pool, "stable", true).await;
     events(&pool, i, 20, 0).await;
 
-    service::evaluate(&pool, DEFAULT_ORG).await.expect("first pass");
+    service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("first pass");
     let first = service::get(&pool, DEFAULT_ORG, i).await.expect("health");
 
-    service::evaluate(&pool, DEFAULT_ORG).await.expect("second pass");
+    service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("second pass");
     let second = service::get(&pool, DEFAULT_ORG, i).await.expect("health");
 
     assert_eq!(second.status, first.status);
-    assert_eq!(second.since, first.since, "since must not move on an unchanged status");
-    assert!(second.evaluated_at >= first.evaluated_at, "but evaluated_at must advance");
+    assert_eq!(
+        second.since, first.since,
+        "since must not move on an unchanged status"
+    );
+    assert!(
+        second.evaluated_at >= first.evaluated_at,
+        "but evaluated_at must advance"
+    );
     assert_eq!(transition_count(&pool, i).await, 1, "no duplicate history");
 }
 
@@ -144,20 +161,30 @@ async fn a_stable_status_appends_no_history_and_does_not_move_since(pool: PgPool
 async fn a_status_change_is_recorded(pool: PgPool) {
     let i = seed_integration(&pool, "degrading", true).await;
     events(&pool, i, 20, 0).await;
-    service::evaluate(&pool, DEFAULT_ORG).await.expect("healthy pass");
+    service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("healthy pass");
 
     // Twenty more events, all failing: half the window is now bad, well past
     // the default 20% unhealthy threshold.
     events(&pool, i, 20, 20).await;
-    let result = service::evaluate(&pool, DEFAULT_ORG).await.expect("unhealthy pass");
+    let result = service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("unhealthy pass");
     assert_eq!(result.changed, 1);
 
     let health = service::get(&pool, DEFAULT_ORG, i).await.expect("health");
     assert_eq!(health.status, HealthStatus::Unhealthy);
 
-    let history = service::transitions(&pool, DEFAULT_ORG, i, None).await.expect("transitions");
+    let history = service::transitions(&pool, DEFAULT_ORG, i, None)
+        .await
+        .expect("transitions");
     assert_eq!(history.len(), 2);
-    assert_eq!(history[0].to_status, HealthStatus::Unhealthy, "newest first");
+    assert_eq!(
+        history[0].to_status,
+        HealthStatus::Unhealthy,
+        "newest first"
+    );
     assert_eq!(history[0].from_status, Some(HealthStatus::Healthy));
 }
 
@@ -183,15 +210,23 @@ async fn a_per_integration_policy_overrides_the_org_default(pool: PgPool) {
     .await
     .expect("insert policy");
 
-    service::evaluate(&pool, DEFAULT_ORG).await.expect("evaluate");
+    service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("evaluate");
 
     assert_eq!(
-        service::get(&pool, DEFAULT_ORG, strict).await.expect("strict").status,
+        service::get(&pool, DEFAULT_ORG, strict)
+            .await
+            .expect("strict")
+            .status,
         HealthStatus::Unhealthy,
         "10% errors is past the override's 5% unhealthy threshold"
     );
     assert_eq!(
-        service::get(&pool, DEFAULT_ORG, lenient).await.expect("lenient").status,
+        service::get(&pool, DEFAULT_ORG, lenient)
+            .await
+            .expect("lenient")
+            .status,
         HealthStatus::Degraded,
         "the same traffic only degrades under the org default"
     );
@@ -205,10 +240,18 @@ async fn unmonitored_integrations_are_skipped(pool: PgPool) {
     events(&pool, watched, 20, 0).await;
     events(&pool, ignored, 20, 20).await;
 
-    let result = service::evaluate(&pool, DEFAULT_ORG).await.expect("evaluate");
-    assert_eq!(result.evaluated, 1, "only the monitored integration is judged");
+    let result = service::evaluate(&pool, DEFAULT_ORG)
+        .await
+        .expect("evaluate");
+    assert_eq!(
+        result.evaluated, 1,
+        "only the monitored integration is judged"
+    );
 
-    assert!(service::get(&pool, DEFAULT_ORG, ignored).await.is_err(), "no record for an unmonitored one");
+    assert!(
+        service::get(&pool, DEFAULT_ORG, ignored).await.is_err(),
+        "no record for an unmonitored one"
+    );
     assert_eq!(transition_count(&pool, ignored).await, 0);
 }
 

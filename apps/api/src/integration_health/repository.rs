@@ -91,10 +91,7 @@ pub async fn gather(db: &PgPool, org_id: Uuid) -> Result<Vec<EvaluationInput>, A
 ///
 /// Fetched once per pass rather than per integration: the evaluator needs the
 /// previous status to detect a transition, and asking per row would be an N+1.
-pub async fn current_statuses(
-    db: &PgPool,
-    org_id: Uuid,
-) -> Result<Vec<(Uuid, String)>, ApiError> {
+pub async fn current_statuses(db: &PgPool, org_id: Uuid) -> Result<Vec<(Uuid, String)>, ApiError> {
     let rows = sqlx::query!(
         r#"SELECT integration_id AS "integration_id!", status AS "status!"
            FROM integration_health
@@ -104,7 +101,10 @@ pub async fn current_statuses(
     .fetch_all(db)
     .await?;
 
-    Ok(rows.into_iter().map(|r| (r.integration_id, r.status)).collect())
+    Ok(rows
+        .into_iter()
+        .map(|r| (r.integration_id, r.status))
+        .collect())
 }
 
 /// Writes the verdict for one integration.

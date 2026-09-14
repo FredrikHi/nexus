@@ -117,7 +117,9 @@ pub async fn set_role(
     Path(user_id): Path<Uuid>,
     Json(body): Json<UpdateMemberRole>,
 ) -> Result<Json<Vec<Member>>, ApiError> {
-    Ok(Json(service::set_role(&state.db, &ctx, user_id, body).await?))
+    Ok(Json(
+        service::set_role(&state.db, &ctx, user_id, body).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -136,5 +138,7 @@ pub async fn remove_member(
     ctx: OrgContext,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<Vec<Member>>, ApiError> {
-    Ok(Json(service::remove_member(&state.db, &ctx, user_id).await?))
+    Ok(Json(
+        service::remove_member(&state.db, &ctx, user_id).await?,
+    ))
 }

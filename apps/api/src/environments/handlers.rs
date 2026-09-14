@@ -73,7 +73,9 @@ pub async fn update(
     Json(body): Json<UpdateEnvironment>,
 ) -> Result<Json<Environment>, ApiError> {
     ctx.require_write()?;
-    Ok(Json(service::update(&state.db, ctx.organization_id, id, body).await?))
+    Ok(Json(
+        service::update(&state.db, ctx.organization_id, id, body).await?,
+    ))
 }
 
 #[utoipa::path(

@@ -265,8 +265,14 @@ mod tests {
 
     #[test]
     fn healthy_and_unknown_produce_no_incident() {
-        assert_eq!(Severity::derive(HealthStatus::Healthy, Criticality::Critical), None);
-        assert_eq!(Severity::derive(HealthStatus::Unknown, Criticality::Critical), None);
+        assert_eq!(
+            Severity::derive(HealthStatus::Healthy, Criticality::Critical),
+            None
+        );
+        assert_eq!(
+            Severity::derive(HealthStatus::Unknown, Criticality::Critical),
+            None
+        );
     }
 
     #[test]

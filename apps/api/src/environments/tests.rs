@@ -11,7 +11,9 @@ async fn seed_creates_the_four_environments(pool: PgPool) {
     let environments = service::list(&pool, DEFAULT_ORG).await.expect("list");
 
     assert_eq!(environments.len(), 4);
-    assert!(environments.iter().any(|e| e.slug == "production" && e.is_production));
+    assert!(environments
+        .iter()
+        .any(|e| e.slug == "production" && e.is_production));
     // Production sorts last, so the list reads development-first.
     assert_eq!(environments.last().expect("one").slug, "production");
 }

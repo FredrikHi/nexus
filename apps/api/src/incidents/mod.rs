@@ -21,7 +21,10 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/incidents", get(handlers::list))
         .route("/api/v1/incidents/reconcile", post(handlers::reconcile))
         .route("/api/v1/incidents/{id}", get(handlers::get))
-        .route("/api/v1/incidents/{id}/acknowledge", post(handlers::acknowledge))
+        .route(
+            "/api/v1/incidents/{id}/acknowledge",
+            post(handlers::acknowledge),
+        )
         .route("/api/v1/incidents/{id}/notes", post(handlers::add_note))
 }
 

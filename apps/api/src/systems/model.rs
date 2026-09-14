@@ -135,12 +135,19 @@ impl SystemRow {
         // The DB's CHECK constraints should make these always valid; if a row
         // somehow holds an unknown token, that's a bug, so it's a 500 (Internal)
         // rather than a panic. This is why we don't `.unwrap()` here.
-        let system_type = SystemType::from_db(&self.system_type)
-            .ok_or_else(|| ApiError::Internal(format!("unknown system_type '{}'", self.system_type)))?;
-        let criticality = Criticality::from_db(&self.criticality)
-            .ok_or_else(|| ApiError::Internal(format!("unknown criticality '{}'", self.criticality)))?;
-        let lifecycle_status = LifecycleStatus::from_db(&self.lifecycle_status)
-            .ok_or_else(|| ApiError::Internal(format!("unknown lifecycle_status '{}'", self.lifecycle_status)))?;
+        let system_type = SystemType::from_db(&self.system_type).ok_or_else(|| {
+            ApiError::Internal(format!("unknown system_type '{}'", self.system_type))
+        })?;
+        let criticality = Criticality::from_db(&self.criticality).ok_or_else(|| {
+            ApiError::Internal(format!("unknown criticality '{}'", self.criticality))
+        })?;
+        let lifecycle_status =
+            LifecycleStatus::from_db(&self.lifecycle_status).ok_or_else(|| {
+                ApiError::Internal(format!(
+                    "unknown lifecycle_status '{}'",
+                    self.lifecycle_status
+                ))
+            })?;
 
         Ok(System {
             id: self.id,

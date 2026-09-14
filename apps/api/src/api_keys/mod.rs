@@ -19,7 +19,10 @@ pub use model::AuthenticatedKey;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/api-keys", get(handlers::list).post(handlers::create))
+        .route(
+            "/api/v1/api-keys",
+            get(handlers::list).post(handlers::create),
+        )
         .route("/api/v1/api-keys/{id}", delete(handlers::revoke))
 }
 

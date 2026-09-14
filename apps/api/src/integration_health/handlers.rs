@@ -42,7 +42,9 @@ pub async fn overview(
     State(state): State<AppState>,
     ctx: OrgContext,
 ) -> Result<Json<HashMap<&'static str, usize>>, ApiError> {
-    Ok(Json(service::overview(&state.db, ctx.organization_id).await?))
+    Ok(Json(
+        service::overview(&state.db, ctx.organization_id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -62,7 +64,9 @@ pub async fn get(
     ctx: OrgContext,
     Path(integration_id): Path<Uuid>,
 ) -> Result<Json<IntegrationHealth>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, integration_id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, integration_id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -84,8 +88,7 @@ pub async fn transitions(
     Query(params): Query<TransitionsQuery>,
 ) -> Result<Json<Vec<HealthTransition>>, ApiError> {
     Ok(Json(
-        service::transitions(&state.db, ctx.organization_id, integration_id, params.limit)
-            .await?,
+        service::transitions(&state.db, ctx.organization_id, integration_id, params.limit).await?,
     ))
 }
 
@@ -105,5 +108,7 @@ pub async fn evaluate(
     // The same pass the worker runs, but scoped to the caller's own tenant:
     // a refresh button must not evaluate somebody else's organization.
     ctx.require_write()?;
-    Ok(Json(service::evaluate(&state.db, ctx.organization_id).await?))
+    Ok(Json(
+        service::evaluate(&state.db, ctx.organization_id).await?,
+    ))
 }
