@@ -1,0 +1,29 @@
+# The release version is computed from commit messages, and a squash merge uses
+# the pull request title as the commit message. So the title is what decides
+# whether a release happens, and what kind.
+#
+# Separate from CI on purpose, for the `edited` trigger below: editing a title
+# should re-run this check, but it should not re-run the Rust suite.
+name: PR title
+
+on:
+  pull_request:
+    # `edited` is the one that matters. Without it, fixing a rejected title
+    # changes nothing, because the default triggers do not include it and a
+    # manual re-run replays the original payload with the old title still in it.
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

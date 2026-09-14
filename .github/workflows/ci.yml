@@ -100,17 +100,3 @@ jobs:
           cache-dependency-path: clients/node/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-
-  title:
-    name: Conventional PR title
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      # The release version is computed from commit messages, and a squash
-      # merge uses the pull request title as the commit message. So the title
-      # is what decides whether a release happens, and what kind.
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
