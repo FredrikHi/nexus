@@ -3,10 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Integration Control Center — open-source integration observability</title>
+<title>Nexus — open-source integration observability</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <meta name="description" content="See every call between your systems: what is failing, how slowly, and since when. Open source, self-hostable, free forever.">
-<meta property="og:title" content="Integration Control Center">
+<meta property="og:title" content="Nexus">
 <meta property="og:description" content="Open-source observability for the calls between your systems. Self-hostable, free forever.">
+<meta property="og:image" content="logo.svg">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -49,7 +51,8 @@
   header { padding: 20px 0; border-bottom: 1px solid var(--line); position: sticky; top: 0;
            background: var(--bg); z-index: 10; }
   .nav { display: flex; align-items: center; gap: 22px; }
-  .brand { font-weight: 640; letter-spacing: -0.01em; text-decoration: none; }
+  .brand { font-weight: 640; letter-spacing: -0.01em; text-decoration: none;
+           display: inline-flex; align-items: center; gap: 9px; }
   .nav .spacer { margin-left: auto; }
   .nav a.link { color: var(--muted); text-decoration: none; font-size: 14px; }
   .nav a.link:hover { color: var(--text); }
@@ -113,7 +116,10 @@
 
 <header>
   <div class="wrap nav">
-    <a class="brand" href="#top">Integration Control Center</a>
+    <a class="brand" href="#top">
+      <img src="logo.svg" alt="" width="22" height="22">
+      <span>Nexus</span>
+    </a>
     <span class="spacer"></span>
     <a class="link" href="#how">How it works</a>
     <a class="link" href="#open">Open source</a>
@@ -338,7 +344,7 @@ docker compose -f docker-compose.production.yml up -d</pre>
 
 <footer>
   <div class="wrap foot">
-    <span>Integration Control Center</span>
+    <span>Nexus</span>
     <span class="spacer"></span>
     <a href="https://github.com/FredrikHillbert/nexus">Source</a>
     <a href="https://github.com/FredrikHillbert/nexus/blob/master/LICENSE">AGPL-3.0</a>

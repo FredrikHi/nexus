@@ -1,4 +1,4 @@
-<h1 align="center">Integration Control Center</h1>
+<h1 align="center">Nexus</h1>
 
 <p align="center">
   Open-source, self-hostable observability for the calls <em>between</em> your systems.

@@ -36,7 +36,7 @@ export function SignIn() {
     <div className="flex min-h-full items-center justify-center bg-neutral-950 p-6">
       <div className="w-full max-w-sm">
         <div className="mb-8">
-          <h1 className="text-lg font-semibold text-neutral-100">Integration Control Center</h1>
+          <h1 className="text-lg font-semibold text-neutral-100">Nexus</h1>
           <p className="mt-1 text-sm text-neutral-400">
             {mode === 'sign-in' ? 'Sign in to continue.' : 'Create an account to get started.'}
           </p>

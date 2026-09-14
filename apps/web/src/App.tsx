@@ -86,7 +86,7 @@ function Shell({ me }: { me: Me }) {
     <div className="flex h-full bg-neutral-950 text-neutral-200">
       <aside className="flex w-60 shrink-0 flex-col border-r border-neutral-800 p-4">
         <div className="mb-4 text-sm font-semibold tracking-wide text-neutral-100">
-          Integration Control Center
+          Nexus
         </div>
 
         <div className="mb-6">
