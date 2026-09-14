@@ -102,10 +102,10 @@ pub async fn ensure_partitions(db: &PgPool, months_ahead: i32) -> Result<(), Api
 
 /// Every filter `list` accepts.
 ///
-/// A struct rather than eight positional arguments: four of them are
-/// `Option`s of two types, so a caller could swap two and still compile. The
-/// lifetime is there because the string filters are borrowed from the request
-/// rather than copied, and the struct may not outlive them.
+/// A struct rather than eight positional arguments: six of them are
+/// `Option`s, and two of those borrow strings from the request. The
+/// lifetime is there because the string filters are borrowed from the
+/// request rather than copied, and the struct may not outlive them.
 pub struct ListFilters<'a> {
     pub integration_id: Option<Uuid>,
     pub environment_id: Option<Uuid>,
