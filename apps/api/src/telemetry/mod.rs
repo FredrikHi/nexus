@@ -16,8 +16,8 @@ use crate::error::ApiError;
 
 // A span in a trace is a telemetry event, so the traces feature reads these
 // types rather than defining near-duplicates of them.
-pub use model::{TelemetryEvent, TelemetryEventRow, TelemetryStatus};
 use crate::AppState;
+pub use model::{TelemetryEvent, TelemetryEventRow, TelemetryStatus};
 
 /// Creates the monthly partitions around now. Called once at startup so ingest
 /// never hits a month with nowhere to put a row. Idempotent.
@@ -27,7 +27,10 @@ pub async fn ensure_partitions(db: &PgPool) -> Result<(), ApiError> {
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/telemetry", get(handlers::list).post(handlers::ingest))
+        .route(
+            "/api/v1/telemetry",
+            get(handlers::list).post(handlers::ingest),
+        )
         .route("/api/v1/telemetry/summary", get(handlers::summary))
         .route("/api/v1/telemetry/series", get(handlers::series))
 }

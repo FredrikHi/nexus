@@ -51,8 +51,14 @@ pub async fn create(
         ));
     }
 
-    repository::create_with_owner(db, name, &slug, input.description.as_deref(), identity.user_id)
-        .await
+    repository::create_with_owner(
+        db,
+        name,
+        &slug,
+        input.description.as_deref(),
+        identity.user_id,
+    )
+    .await
 }
 
 pub async fn get(db: &PgPool, ctx: &OrgContext) -> Result<Organization, ApiError> {
@@ -91,11 +97,13 @@ pub async fn add_member(
 
     // There is no invitation flow yet, so the account has to exist. Saying so
     // plainly beats a silent no-op or a confusing foreign key error.
-    let user_id = repository::find_user_by_email(db, email).await?.ok_or_else(|| {
-        ApiError::Validation(format!(
-            "no account for {email}; they must sign in once before being added"
-        ))
-    })?;
+    let user_id = repository::find_user_by_email(db, email)
+        .await?
+        .ok_or_else(|| {
+            ApiError::Validation(format!(
+                "no account for {email}; they must sign in once before being added"
+            ))
+        })?;
 
     repository::add_member(db, ctx.organization_id, user_id, input.role.as_str()).await?;
     members(db, ctx).await

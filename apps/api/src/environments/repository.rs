@@ -109,10 +109,7 @@ pub async fn delete(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<bool, ApiErro
 ///
 /// The foreign key would null them out silently on delete; telling the caller
 /// first turns a surprise into a decision.
-pub async fn integrations_using(
-    db: &PgPool,
-    environment_id: Uuid,
-) -> Result<i64, ApiError> {
+pub async fn integrations_using(db: &PgPool, environment_id: Uuid) -> Result<i64, ApiError> {
     let count = sqlx::query_scalar!(
         r#"SELECT count(*) AS "n!" FROM integrations WHERE environment_id = $1"#,
         environment_id

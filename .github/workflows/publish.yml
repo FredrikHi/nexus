@@ -2,13 +2,25 @@
 # so self-hosting is a compose file that pulls rather than a repository that
 # compiles. Building Rust on the box you are deploying to is what makes a
 # small VPS feel like a bad idea.
+#
+# Called by the release workflow once a version has been cut. Runnable by hand
+# when you want to refresh `latest` without releasing.
 name: Publish images
 
 on:
-  push:
-    branches: [master]
-    tags: ["v*.*.*"]
+  workflow_call:
+    inputs:
+      version:
+        description: Semver to tag the images with, without a leading v.
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      version:
+        description: Semver to tag with. Leave empty to publish latest only.
+        required: false
+        type: string
+        default: ""
 
 jobs:
   publish:
@@ -47,9 +59,10 @@ jobs:
         with:
           images: ${{ steps.repo.outputs.image }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+            type=raw,value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=semver,pattern={{major}},value=${{ inputs.version }},enable=${{ inputs.version != '' }}
             type=sha,format=short
 
       - uses: docker/build-push-action@v6

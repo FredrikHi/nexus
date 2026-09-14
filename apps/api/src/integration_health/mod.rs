@@ -28,9 +28,18 @@ pub use worker::{enabled as worker_enabled, spawn as spawn_worker, WorkerConfig}
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/integration-health", get(handlers::list))
-        .route("/api/v1/integration-health/overview", get(handlers::overview))
-        .route("/api/v1/integration-health/evaluate", post(handlers::evaluate))
-        .route("/api/v1/integration-health/{integration_id}", get(handlers::get))
+        .route(
+            "/api/v1/integration-health/overview",
+            get(handlers::overview),
+        )
+        .route(
+            "/api/v1/integration-health/evaluate",
+            post(handlers::evaluate),
+        )
+        .route(
+            "/api/v1/integration-health/{integration_id}",
+            get(handlers::get),
+        )
         .route(
             "/api/v1/integration-health/{integration_id}/transitions",
             get(handlers::transitions),
@@ -59,5 +68,9 @@ pub async fn health_of(
     org_id: uuid::Uuid,
     integration_id: uuid::Uuid,
 ) -> Result<String, crate::error::ApiError> {
-    Ok(service::get(db, org_id, integration_id).await?.status.as_str().to_string())
+    Ok(service::get(db, org_id, integration_id)
+        .await?
+        .status
+        .as_str()
+        .to_string())
 }

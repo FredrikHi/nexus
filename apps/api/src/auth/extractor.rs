@@ -86,21 +86,24 @@ impl FromRequestParts<AppState> for OrgContext {
         let role = OrgRole::from_db(&role)
             .ok_or_else(|| ApiError::Internal(format!("unknown role '{role}'")))?;
 
-        Ok(OrgContext { identity, organization_id, role })
+        Ok(OrgContext {
+            identity,
+            organization_id,
+            role,
+        })
     }
 }
 
 /// Verifies the bearer token and resolves it to a local user row.
 async fn authenticate(parts: &Parts, state: &AppState) -> Result<Identity, ApiError> {
-    let token = bearer_token(parts).ok_or_else(|| {
-        ApiError::Unauthorized("missing bearer token".to_string())
-    })?;
+    let token = bearer_token(parts)
+        .ok_or_else(|| ApiError::Unauthorized("missing bearer token".to_string()))?;
 
     // The key id in the header says which key signed this, which is what makes
     // rotation possible: the auth service can publish a new key and start
     // using it without any coordinated restart here.
-    let header = decode_header(&token)
-        .map_err(|_| ApiError::Unauthorized("malformed token".to_string()))?;
+    let header =
+        decode_header(&token).map_err(|_| ApiError::Unauthorized("malformed token".to_string()))?;
     let kid = header
         .kid
         .ok_or_else(|| ApiError::Unauthorized("token has no key id".to_string()))?;
@@ -118,10 +121,7 @@ async fn authenticate(parts: &Parts, state: &AppState) -> Result<Identity, ApiEr
 
     // First sight of an account creates the local row; later sights refresh
     // the profile, so a changed name or avatar follows without a sync job.
-    let display_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.email.clone());
+    let display_name = claims.name.clone().unwrap_or_else(|| claims.email.clone());
 
     repository::upsert_by_subject(
         &state.db,

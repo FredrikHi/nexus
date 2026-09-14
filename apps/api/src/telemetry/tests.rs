@@ -81,7 +81,11 @@ async fn seed_integration(pool: &PgPool, org: Uuid, name: &str) -> Uuid {
 fn auth(org: Uuid, environment_id: Option<Uuid>) -> AuthenticatedKey {
     // The id is arbitrary here: ingest authorises on the organization,
     // not on which key presented it.
-    AuthenticatedKey { api_key_id: Uuid::from_u128(42), organization_id: org, environment_id }
+    AuthenticatedKey {
+        api_key_id: Uuid::from_u128(42),
+        organization_id: org,
+        environment_id,
+    }
 }
 
 fn event(integration_id: Uuid, status: TelemetryStatus, duration_ms: Option<i32>) -> IngestEvent {
@@ -119,18 +123,27 @@ async fn a_key_cannot_write_to_another_organizations_integration(pool: PgPool) {
     let result = service::ingest(
         &pool,
         auth(DEFAULT_ORG, None),
-        IngestBatch { events: vec![event(theirs, TelemetryStatus::Success, None)] },
+        IngestBatch {
+            events: vec![event(theirs, TelemetryStatus::Success, None)],
+        },
     )
     .await;
 
     match result {
         Err(ApiError::Validation(message)) => {
-            assert!(message.contains("integration_id"), "unexpected message: {message}");
+            assert!(
+                message.contains("integration_id"),
+                "unexpected message: {message}"
+            );
         }
         other => panic!("expected a validation error, got {other:?}"),
     }
 
-    assert_eq!(stored_events(&pool).await, 0, "a rejected batch must write nothing");
+    assert_eq!(
+        stored_events(&pool).await,
+        0,
+        "a rejected batch must write nothing"
+    );
 }
 
 /// A batch is all or nothing: one bad event must not leave the good ones behind.
@@ -150,7 +163,10 @@ async fn a_rejected_batch_writes_nothing(pool: PgPool) {
     )
     .await;
 
-    assert!(result.is_err(), "an unknown integration must reject the whole batch");
+    assert!(
+        result.is_err(),
+        "an unknown integration must reject the whole batch"
+    );
     assert_eq!(stored_events(&pool).await, 0);
 }
 
@@ -163,12 +179,21 @@ async fn events_outside_the_window_are_refused(pool: PgPool) {
     let mut stale = event(ours, TelemetryStatus::Success, None);
     stale.occurred_at = Some(Utc::now() - Duration::days(120));
 
-    let result =
-        service::ingest(&pool, auth(DEFAULT_ORG, None), IngestBatch { events: vec![stale] }).await;
+    let result = service::ingest(
+        &pool,
+        auth(DEFAULT_ORG, None),
+        IngestBatch {
+            events: vec![stale],
+        },
+    )
+    .await;
 
     match result {
         Err(ApiError::Validation(message)) => {
-            assert!(message.contains("occurred_at"), "unexpected message: {message}");
+            assert!(
+                message.contains("occurred_at"),
+                "unexpected message: {message}"
+            );
         }
         other => panic!("expected a validation error, got {other:?}"),
     }
@@ -199,15 +224,22 @@ async fn a_pinned_key_controls_the_environment(pool: PgPool) {
     let refused = service::ingest(
         &pool,
         auth(DEFAULT_ORG, Some(production)),
-        IngestBatch { events: vec![claiming] },
+        IngestBatch {
+            events: vec![claiming],
+        },
     )
     .await;
-    assert!(refused.is_err(), "a pinned key must refuse a foreign environment");
+    assert!(
+        refused.is_err(),
+        "a pinned key must refuse a foreign environment"
+    );
 
     service::ingest(
         &pool,
         auth(DEFAULT_ORG, Some(production)),
-        IngestBatch { events: vec![event(ours, TelemetryStatus::Success, None)] },
+        IngestBatch {
+            events: vec![event(ours, TelemetryStatus::Success, None)],
+        },
     )
     .await
     .expect("ingest with the pinned environment");
@@ -216,7 +248,11 @@ async fn a_pinned_key_controls_the_environment(pool: PgPool) {
         .fetch_one(&pool)
         .await
         .expect("read the stored event");
-    assert_eq!(stamped, Some(production), "the pin must supply the environment");
+    assert_eq!(
+        stamped,
+        Some(production),
+        "the pin must supply the environment"
+    );
 }
 
 /// The error rate counts FAILURE and TIMEOUT but deliberately not REJECTED: a
@@ -242,7 +278,12 @@ async fn error_rate_excludes_rejected(pool: PgPool) {
     let summary = service::summary(
         &pool,
         DEFAULT_ORG,
-        SummaryQuery { integration_id: Some(ours), environment_id: None, from: None, to: None },
+        SummaryQuery {
+            integration_id: Some(ours),
+            environment_id: None,
+            from: None,
+            to: None,
+        },
     )
     .await
     .expect("summary");

@@ -53,7 +53,9 @@ pub async fn list(
     ctx: OrgContext,
     Query(params): Query<ListTelemetryQuery>,
 ) -> Result<Json<Vec<TelemetryEvent>>, ApiError> {
-    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
+    Ok(Json(
+        service::list(&state.db, ctx.organization_id, params).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -73,7 +75,9 @@ pub async fn summary(
     ctx: OrgContext,
     Query(params): Query<SummaryQuery>,
 ) -> Result<Json<TelemetrySummary>, ApiError> {
-    Ok(Json(service::summary(&state.db, ctx.organization_id, params).await?))
+    Ok(Json(
+        service::summary(&state.db, ctx.organization_id, params).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -93,5 +97,7 @@ pub async fn series(
     ctx: OrgContext,
     Query(params): Query<SeriesQuery>,
 ) -> Result<Json<Vec<SeriesPoint>>, ApiError> {
-    Ok(Json(service::series(&state.db, ctx.organization_id, params).await?))
+    Ok(Json(
+        service::series(&state.db, ctx.organization_id, params).await?,
+    ))
 }

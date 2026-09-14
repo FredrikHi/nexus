@@ -6,9 +6,7 @@ use crate::error::ApiError;
 use crate::integration_health::HealthStatus;
 
 use super::dto::{AddNote, ListIncidentsQuery};
-use super::model::{
-    Incident, IncidentDetail, IncidentEventKind, ReconcileResult, Severity,
-};
+use super::model::{Incident, IncidentDetail, IncidentEventKind, ReconcileResult, Severity};
 use super::repository;
 
 const DEFAULT_LIMIT: i64 = 50;
@@ -22,7 +20,11 @@ const MAX_LIMIT: i64 = 500;
 /// happens, so a missed pass costs a delay rather than a lost incident.
 pub async fn reconcile(db: &PgPool, org_id: Uuid) -> Result<ReconcileResult, ApiError> {
     let inputs = repository::gather(db, org_id).await?;
-    let mut result = ReconcileResult { opened: 0, escalated: 0, resolved: 0 };
+    let mut result = ReconcileResult {
+        opened: 0,
+        escalated: 0,
+        resolved: 0,
+    };
 
     for input in &inputs {
         let health = HealthStatus::from_db(&input.health_status).ok_or_else(|| {
@@ -37,7 +39,11 @@ pub async fn reconcile(db: &PgPool, org_id: Uuid) -> Result<ReconcileResult, Api
         match (warranted, input.open_incident_id) {
             // Broken, and nothing open yet: open one.
             (Some(severity), None) => {
-                let title = format!("{} is {}", input.integration_name, health.as_str().to_lowercase());
+                let title = format!(
+                    "{} is {}",
+                    input.integration_name,
+                    health.as_str().to_lowercase()
+                );
                 if let Some(id) = repository::open(db, input, severity, &title).await? {
                     repository::add_event(
                         db,
@@ -111,7 +117,11 @@ pub async fn reconcile(db: &PgPool, org_id: Uuid) -> Result<ReconcileResult, Api
 
 /// Reconciles every organization. The worker's counterpart to evaluate_all.
 pub async fn reconcile_all(db: &PgPool) -> Result<ReconcileResult, ApiError> {
-    let mut total = ReconcileResult { opened: 0, escalated: 0, resolved: 0 };
+    let mut total = ReconcileResult {
+        opened: 0,
+        escalated: 0,
+        resolved: 0,
+    };
 
     for org_id in crate::organizations::all_ids(db).await? {
         let result = reconcile(db, org_id).await?;
@@ -199,7 +209,9 @@ pub async fn add_note(
 ) -> Result<IncidentDetail, ApiError> {
     let message = input.message.trim();
     if message.is_empty() {
-        return Err(ApiError::Validation("message must not be empty".to_string()));
+        return Err(ApiError::Validation(
+            "message must not be empty".to_string(),
+        ));
     }
 
     // 404 before writing, and notes stay allowed after resolution so a

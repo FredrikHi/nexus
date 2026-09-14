@@ -65,7 +65,13 @@ async fn seed_integration(pool: &PgPool, name: &str) -> Uuid {
 }
 
 /// Writes one span into a trace, `seconds_ago` before now.
-async fn span(pool: &PgPool, trace: &str, integration: Uuid, status: TelemetryStatus, seconds_ago: i64) {
+async fn span(
+    pool: &PgPool,
+    trace: &str,
+    integration: Uuid,
+    status: TelemetryStatus,
+    seconds_ago: i64,
+) {
     sqlx::query!(
         r#"INSERT INTO telemetry_events
              (organization_id, integration_id, occurred_at, status, duration_ms, trace_id)
@@ -112,7 +118,9 @@ async fn status_rolls_up_by_severity(pool: PgPool) {
 
     span(&pool, "all-good", i, TelemetryStatus::Success, 30).await;
 
-    let traces = service::list(&pool, DEFAULT_ORG, query()).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, query())
+        .await
+        .expect("list traces");
     let by_id = |id: &str| {
         traces
             .iter()
@@ -120,15 +128,27 @@ async fn status_rolls_up_by_severity(pool: PgPool) {
             .unwrap_or_else(|| panic!("trace {id} missing"))
     };
 
-    assert_eq!(by_id("mixed-failure").status, TelemetryStatus::Failure, "FAILURE outranks TIMEOUT");
-    assert_eq!(by_id("mixed-timeout").status, TelemetryStatus::Timeout, "TIMEOUT outranks REJECTED");
+    assert_eq!(
+        by_id("mixed-failure").status,
+        TelemetryStatus::Failure,
+        "FAILURE outranks TIMEOUT"
+    );
+    assert_eq!(
+        by_id("mixed-timeout").status,
+        TelemetryStatus::Timeout,
+        "TIMEOUT outranks REJECTED"
+    );
     assert_eq!(by_id("only-rejected").status, TelemetryStatus::Rejected);
     assert_eq!(by_id("all-good").status, TelemetryStatus::Success);
 
     // REJECTED is not an error, for the same reason it is excluded from the
     // telemetry error rate: it is the caller's fault, not the dependency's.
     assert_eq!(by_id("only-rejected").error_count, 0);
-    assert_eq!(by_id("mixed-failure").error_count, 2, "failure and timeout both count");
+    assert_eq!(
+        by_id("mixed-failure").error_count,
+        2,
+        "failure and timeout both count"
+    );
 }
 
 /// Filtering by an integration must return the WHOLE trace, not only the spans
@@ -146,12 +166,17 @@ async fn filtering_by_integration_keeps_the_whole_trace(pool: PgPool) {
 
     let mut q = query();
     q.integration_id = Some(second);
-    let traces = service::list(&pool, DEFAULT_ORG, q).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, q)
+        .await
+        .expect("list traces");
 
     assert_eq!(traces.len(), 1, "only the trace touching `second` matches");
     let trace = &traces[0];
     assert_eq!(trace.trace_id, "two-hop");
-    assert_eq!(trace.span_count, 2, "both hops are included, not just the matching one");
+    assert_eq!(
+        trace.span_count, 2,
+        "both hops are included, not just the matching one"
+    );
     assert_eq!(trace.integration_count, 2);
 }
 
@@ -167,7 +192,9 @@ async fn only_errors_drops_healthy_and_rejected_traces(pool: PgPool) {
 
     let mut q = query();
     q.only_errors = Some(true);
-    let traces = service::list(&pool, DEFAULT_ORG, q).await.expect("list traces");
+    let traces = service::list(&pool, DEFAULT_ORG, q)
+        .await
+        .expect("list traces");
 
     let mut ids: Vec<&str> = traces.iter().map(|t| t.trace_id.as_str()).collect();
     ids.sort_unstable();

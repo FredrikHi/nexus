@@ -72,12 +72,7 @@ pub async fn update(
 /// The foreign key would do that silently, so this refuses up front unless the
 /// caller says they mean it. Losing which environment an integration belongs
 /// to is quiet and hard to notice afterwards.
-pub async fn delete(
-    db: &PgPool,
-    ctx: &OrgContext,
-    id: Uuid,
-    force: bool,
-) -> Result<(), ApiError> {
+pub async fn delete(db: &PgPool, ctx: &OrgContext, id: Uuid, force: bool) -> Result<(), ApiError> {
     get(db, ctx.organization_id, id).await?;
 
     let in_use = repository::integrations_using(db, id).await?;

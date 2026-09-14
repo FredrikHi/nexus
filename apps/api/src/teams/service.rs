@@ -104,7 +104,9 @@ pub async fn remove_member(
     get(db, org_id, id).await?;
 
     if !repository::remove_member(db, id, user_id).await? {
-        return Err(ApiError::NotFound("that user is not in this team".to_string()));
+        return Err(ApiError::NotFound(
+            "that user is not in this team".to_string(),
+        ));
     }
     repository::members(db, id).await
 }

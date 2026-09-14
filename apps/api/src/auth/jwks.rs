@@ -44,7 +44,11 @@ impl JwksCache {
             .build()
             .unwrap_or_default();
 
-        JwksCache { url, http, cached: Arc::new(RwLock::new(None)) }
+        JwksCache {
+            url,
+            http,
+            cached: Arc::new(RwLock::new(None)),
+        }
     }
 
     /// Resolves a key id to a verification key.
@@ -105,12 +109,10 @@ impl JwksCache {
             }
         }
 
-        let response = self
-            .http
-            .get(&self.url)
-            .send()
-            .await
-            .map_err(|e| ApiError::Internal(format!("could not reach the auth service: {e}")))?;
+        let response =
+            self.http.get(&self.url).send().await.map_err(|e| {
+                ApiError::Internal(format!("could not reach the auth service: {e}"))
+            })?;
 
         if !response.status().is_success() {
             return Err(ApiError::Internal(format!(
@@ -125,7 +127,10 @@ impl JwksCache {
             .map_err(|e| ApiError::Internal(format!("malformed key set: {e}")))?;
 
         let mut guard = self.cached.write().await;
-        *guard = Some(Cached { keys, fetched_at: Instant::now() });
+        *guard = Some(Cached {
+            keys,
+            fetched_at: Instant::now(),
+        });
         Ok(())
     }
 
@@ -134,6 +139,9 @@ impl JwksCache {
     #[cfg(test)]
     pub async fn seed(&self, keys: JwkSet) {
         let mut guard = self.cached.write().await;
-        *guard = Some(Cached { keys, fetched_at: Instant::now() });
+        *guard = Some(Cached {
+            keys,
+            fetched_at: Instant::now(),
+        });
     }
 }

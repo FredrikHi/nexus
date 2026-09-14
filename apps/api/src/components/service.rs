@@ -30,7 +30,6 @@ pub async fn create(
     org_id: Uuid,
     input: CreateComponent,
 ) -> Result<Component, ApiError> {
-
     let name = input.name.trim();
     if name.is_empty() {
         return Err(ApiError::Validation("name must not be empty".to_string()));

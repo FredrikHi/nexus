@@ -54,7 +54,9 @@ impl MembershipRow {
 ///
 /// OWNER is separate from ADMIN so an organization can never be left with
 /// nobody able to manage it: the last owner cannot be removed or demoted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, serde::Deserialize, ToSchema)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, serde::Deserialize, ToSchema,
+)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrgRole {
     Viewer,

@@ -42,9 +42,7 @@ async fn validate_references(
     // itself carries no information and would corrupt any topology built from
     // these rows later, so it is rejected outright.
     if source_component_id == destination_component_id {
-        problems.push(
-            "source_component_id and destination_component_id must differ".to_string(),
-        );
+        problems.push("source_component_id and destination_component_id must differ".to_string());
     }
 
     let check = repository::check_references(
@@ -92,7 +90,6 @@ pub async fn create(
     org_id: Uuid,
     input: CreateIntegration,
 ) -> Result<Integration, ApiError> {
-
     let name = input.name.trim();
     if name.is_empty() {
         return Err(ApiError::Validation("name must not be empty".to_string()));
@@ -134,7 +131,6 @@ pub async fn update(
     id: Uuid,
     input: UpdateIntegration,
 ) -> Result<Integration, ApiError> {
-
     // 404 up front, and the current row doubles as the base for the checks
     // below: a PATCH that changes only one endpoint still has to be validated
     // against the endpoint it is keeping.
@@ -165,11 +161,15 @@ pub async fn update(
         validate_references(
             db,
             org_id,
-            input.source_component_id.unwrap_or(current.source_component_id),
+            input
+                .source_component_id
+                .unwrap_or(current.source_component_id),
             input
                 .destination_component_id
                 .unwrap_or(current.destination_component_id),
-            input.integration_type_id.unwrap_or(current.integration_type_id),
+            input
+                .integration_type_id
+                .unwrap_or(current.integration_type_id),
             input.environment_id.or(current.environment_id),
         )
         .await?;

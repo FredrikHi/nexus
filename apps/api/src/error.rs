@@ -48,10 +48,9 @@ impl ApiError {
             ApiError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED"),
             ApiError::Forbidden(_) => (StatusCode::FORBIDDEN, "FORBIDDEN"),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, "BAD_REQUEST"),
-            ApiError::UnsupportedMediaType(_) => (
-                StatusCode::UNSUPPORTED_MEDIA_TYPE,
-                "UNSUPPORTED_MEDIA_TYPE",
-            ),
+            ApiError::UnsupportedMediaType(_) => {
+                (StatusCode::UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE")
+            }
             ApiError::Validation(_) => (StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION_FAILED"),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, "CONFLICT"),
             ApiError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR"),
@@ -95,7 +94,13 @@ impl IntoResponse for ApiError {
             self.to_string()
         };
 
-        (status, Json(ErrorBody { error: ErrorDetail { code, message } })).into_response()
+        (
+            status,
+            Json(ErrorBody {
+                error: ErrorDetail { code, message },
+            }),
+        )
+            .into_response()
     }
 }
 
@@ -106,7 +111,9 @@ impl From<sqlx::Error> for ApiError {
     fn from(err: sqlx::Error) -> Self {
         if let sqlx::Error::Database(db) = &err {
             if db.is_unique_violation() {
-                return ApiError::Conflict("A resource with the same unique value already exists.".to_string());
+                return ApiError::Conflict(
+                    "A resource with the same unique value already exists.".to_string(),
+                );
             }
             if db.is_foreign_key_violation() {
                 return ApiError::Validation("A referenced resource does not exist.".to_string());

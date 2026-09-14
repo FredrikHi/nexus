@@ -25,7 +25,9 @@ pub async fn list(
     ctx: OrgContext,
     Query(params): Query<ListTracesQuery>,
 ) -> Result<Json<Vec<TraceSummary>>, ApiError> {
-    Ok(Json(service::list(&state.db, ctx.organization_id, params).await?))
+    Ok(Json(
+        service::list(&state.db, ctx.organization_id, params).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -43,5 +45,7 @@ pub async fn get(
     ctx: OrgContext,
     Path(trace_id): Path<String>,
 ) -> Result<Json<TraceDetail>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, &trace_id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, &trace_id).await?,
+    ))
 }

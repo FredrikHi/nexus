@@ -56,7 +56,9 @@ pub async fn get(
     ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Team>, ApiError> {
-    Ok(Json(service::get(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::get(&state.db, ctx.organization_id, id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -75,7 +77,9 @@ pub async fn update(
     Json(body): Json<UpdateTeam>,
 ) -> Result<Json<Team>, ApiError> {
     ctx.require_admin()?;
-    Ok(Json(service::update(&state.db, ctx.organization_id, id, body).await?))
+    Ok(Json(
+        service::update(&state.db, ctx.organization_id, id, body).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -107,7 +111,9 @@ pub async fn members(
     ctx: OrgContext,
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<TeamMember>>, ApiError> {
-    Ok(Json(service::members(&state.db, ctx.organization_id, id).await?))
+    Ok(Json(
+        service::members(&state.db, ctx.organization_id, id).await?,
+    ))
 }
 
 #[utoipa::path(
@@ -126,7 +132,9 @@ pub async fn add_member(
     Json(body): Json<AddTeamMember>,
 ) -> Result<Json<Vec<TeamMember>>, ApiError> {
     ctx.require_admin()?;
-    Ok(Json(service::add_member(&state.db, ctx.organization_id, id, body).await?))
+    Ok(Json(
+        service::add_member(&state.db, ctx.organization_id, id, body).await?,
+    ))
 }
 
 #[utoipa::path(

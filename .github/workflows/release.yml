@@ -1,0 +1,50 @@
+# Decides the version from the commit messages on the default branch, tags it,
+# writes the release notes, and then publishes images carrying that version.
+#
+# Nothing here runs on a pull request: a release happens only once something
+# has been merged, which is the point at which the version is real.
+name: Release
+
+on:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the tag and the release
+      issues: write         # comment on issues a release closes
+      pull-requests: write
+
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # semantic-release reads the whole history to work out what changed
+          # since the last tag.
+          fetch-depth: 0
+
+      - id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Only when a version was actually cut. A merge of a `chore:` or `docs:`
+  # commit releases nothing, and republishing the same images would be noise.
+  publish:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
