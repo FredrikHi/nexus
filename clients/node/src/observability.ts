@@ -134,6 +134,19 @@ export function classify(error: unknown): {
   }
 }
 
+/**
+ * Whether a failed send can never succeed on a retry.
+ *
+ * A 4xx means the collector read the batch and rejected it: a revoked key, or
+ * an integration id that does not exist. Those do not heal by waiting. 408 and
+ * 429 are the exceptions, being about timing rather than content.
+ */
+function isPermanent(error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status
+  if (status === undefined) return false
+  return status >= 400 && status < 500 && status !== 408 && status !== 429
+}
+
 export class Observability {
   private queue: TelemetryEvent[] = []
   private timer: ReturnType<typeof setInterval> | null = null
@@ -229,6 +242,15 @@ export class Observability {
         try {
           await this.send(batch)
         } catch (error) {
+          if (isPermanent(error)) {
+            // The collector understood the batch and refused it, so retrying
+            // sends the same bytes to the same answer forever. Worse, the
+            // batch goes back to the head of the queue, so one poisoned batch
+            // would block every later event behind it. Drop it and move on.
+            this.dropped += batch.length
+            this.options.onError?.(error)
+            continue
+          }
           // Put them back at the front so ordering survives a blip, unless
           // that would overflow the queue, in which case they are lost.
           if (this.queue.length + batch.length <= this.options.maxQueue) {
@@ -275,9 +297,11 @@ export class Observability {
 
       if (!response.ok) {
         const body = await response.text().catch(() => '')
-        throw new Error(
+        const failed = new Error(
           `telemetry ingest returned ${response.status}: ${body.slice(0, 200)}`,
-        )
+        ) as Error & { status?: number }
+        failed.status = response.status
+        throw failed
       }
     } finally {
       clearTimeout(timeout)
