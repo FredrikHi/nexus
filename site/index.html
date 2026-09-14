@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Integration Control Center — open-source integration observability</title>
+<meta name="description" content="See every call between your systems: what is failing, how slowly, and since when. Open source, self-hostable, free forever.">
+<meta property="og:title" content="Integration Control Center">
+<meta property="og:description" content="Open-source observability for the calls between your systems. Self-hostable, free forever.">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #141414;
+    --panel-2: #1c1c1c;
+    --line: #272727;
+    --text: #ededed;
+    --muted: #8a8a8a;
+    --dim: #5c5c5c;
+    --accent: #34d399;
+    --accent-dim: #065f46;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 88px 0; border-top: 1px solid var(--line); }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0; }
+  h1 { font-size: clamp(34px, 6vw, 58px); font-weight: 700; }
+  h2 { font-size: clamp(26px, 3.6vw, 36px); font-weight: 650; margin-bottom: 18px; }
+  h3 { font-size: 17px; font-weight: 620; margin-bottom: 6px; }
+  p { margin: 0 0 16px; color: var(--muted); }
+  .lead { font-size: 19px; color: var(--muted); max-width: 62ch; }
+  .tight { max-width: 68ch; }
+
+  /* Solid rather than a translucent blur: backdrop-filter on a sticky element
+     repaints the whole strip on every scroll frame, which stutters on modest
+     hardware and is worth nothing visually here. */
+  header { padding: 20px 0; border-bottom: 1px solid var(--line); position: sticky; top: 0;
+           background: var(--bg); z-index: 10; }
+  .nav { display: flex; align-items: center; gap: 22px; }
+  .brand { font-weight: 640; letter-spacing: -0.01em; text-decoration: none; }
+  .nav .spacer { margin-left: auto; }
+  .nav a.link { color: var(--muted); text-decoration: none; font-size: 14px; }
+  .nav a.link:hover { color: var(--text); }
+
+  .btn { display: inline-block; padding: 11px 20px; border-radius: 8px; font-size: 15px;
+         font-weight: 560; text-decoration: none; border: 1px solid var(--line); }
+  .btn.primary { background: var(--accent); color: #04231a; border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost:hover { border-color: #3d3d3d; background: var(--panel); }
+  .btn.small { padding: 8px 14px; font-size: 14px; }
+
+  .hero { padding: 96px 0 76px; }
+  .hero .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .tag { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--accent);
+         border: 1px solid var(--accent-dim); background: rgba(6,95,70,.18);
+         padding: 5px 12px; border-radius: 999px; margin-bottom: 22px; }
+
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+        padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 13.5px;
+        line-height: 1.7; color: #d4d4d4; margin: 0; }
+  code { font-family: var(--mono); font-size: .92em; }
+  .c-key { color: #7dd3fc; }
+  .c-str { color: var(--accent); }
+  .c-com { color: var(--dim); }
+
+  .grid { display: grid; gap: 18px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  /* Grid and flex children default to min-width:auto, so a wide <pre> widens
+     its track instead of scrolling inside it, and the whole page gains a
+     horizontal scrollbar on a phone. */
+  .grid > *, .step > *, .split > *, .preview .body > * { min-width: 0; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+  .card p { margin: 0; font-size: 14.5px; }
+  .num { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-bottom: 10px; }
+
+  .steps { counter-reset: s; }
+  .step { display: grid; grid-template-columns: 34px 1fr; gap: 16px; margin-bottom: 26px; align-items: start; }
+  .step .dot { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--line);
+               background: var(--panel); display: grid; place-items: center;
+               font-family: var(--mono); font-size: 13px; color: var(--accent); }
+
+  /* On a narrow screen the brand plus four links cannot fit, and the result
+     is a three-line title with the button pushed off the edge. Drop the section
+     links: the page is short enough to scroll. */
+  @media (max-width: 720px) {
+    .nav a.link { display: none; }
+    .brand { font-size: 15px; }
+    section { padding: 64px 0; }
+    .hero { padding: 60px 0 52px; }
+  }
+
+  footer { padding: 48px 0 72px; border-top: 1px solid var(--line); color: var(--dim); font-size: 14px; }
+  footer a { color: var(--muted); }
+  .foot { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .foot .spacer { margin-left: auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top">Integration Control Center</a>
+    <span class="spacer"></span>
+    <a class="link" href="#how">How it works</a>
+    <a class="link" href="#open">Open source</a>
+    <a class="link" href="#install">Self-host</a>
+    <a class="btn ghost small" href="https://github.com/FredrikHillbert/nexus">GitHub</a>
+  </div>
+</header>
+
+<div class="wrap hero" id="top">
+  <span class="tag">● Free and open source, forever</span>
+  <h1>See what happens<br>between your systems.</h1>
+  <p class="lead" style="margin-top:20px">
+    Your logs tell you a request was slow. They do not tell you that it started when a
+    third party began rate-limiting you, that it has run for two hours, or that it affects
+    one of the six places you call them from.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Self-host it in one command</a>
+    <a class="btn ghost" href="https://github.com/FredrikHillbert/nexus">Read the source</a>
+  </div>
+</div>
+
+<style>
+  .preview { border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+             background: var(--panel); box-shadow: 0 30px 80px -40px rgba(0,0,0,.9); }
+  .preview .bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+                  border-bottom: 1px solid var(--line); background: var(--panel-2); }
+  .preview .bar i { width: 10px; height: 10px; border-radius: 999px; background: #303030; display: block; }
+  .preview .bar span { margin-left: 10px; font-size: 12px; color: var(--dim); font-family: var(--mono); }
+  .preview .body { padding: 18px; display: grid; gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tile { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; background: var(--bg); }
+  .tile b { display: block; font-size: 22px; font-weight: 640; letter-spacing: -0.02em; }
+  .tile em { font-style: normal; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+             color: var(--dim); }
+  .split { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .split, .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .panel { border: 1px solid var(--line); border-radius: 9px; padding: 14px; background: var(--bg); }
+  .panel h4 { margin: 0 0 12px; font-size: 12px; font-weight: 560; color: var(--muted); }
+  .spark { display: flex; align-items: flex-end; gap: 4px; height: 92px; }
+  .spark div { flex: 1; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, #10b981, #064e3b); }
+  .spark div.bad { background: linear-gradient(180deg, #f87171, #7f1d1d); }
+  .rows { display: grid; gap: 9px; }
+  .row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; }
+  .row span.name { color: #cfcfcf; }
+  .row span.meta { margin-left: auto; color: var(--dim); font-family: var(--mono); font-size: 11.5px; }
+  .pill { font-size: 9.5px; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px;
+          border-radius: 999px; border: 1px solid; font-weight: 600; }
+  .ok { color: var(--accent); border-color: var(--accent-dim); background: rgba(6,95,70,.2); }
+  .warn { color: var(--amber); border-color: #78350f; background: rgba(120,53,15,.25); }
+  .bad { color: var(--red); border-color: #7f1d1d; background: rgba(127,29,29,.25); }
+  .cap { text-align: center; font-size: 13px; color: var(--dim); margin-top: 14px; }
+</style>
+
+<div class="wrap" style="padding-bottom:16px">
+  <div class="preview" role="img" aria-label="A dashboard showing integration health, traffic and one open incident">
+    <div class="bar"><i></i><i></i><i></i><span>integrations.your-domain</span></div>
+    <div class="body">
+      <div class="tiles">
+        <div class="tile"><b style="color:var(--red)">1</b><em>Unhealthy</em></div>
+        <div class="tile"><b style="color:var(--amber)">2</b><em>Degraded</em></div>
+        <div class="tile"><b style="color:var(--dim)">3</b><em>Unknown</em></div>
+        <div class="tile"><b style="color:var(--accent)">17</b><em>Healthy</em></div>
+      </div>
+      <div class="split">
+        <div class="panel">
+          <h4>Calls by outcome · last 24h</h4>
+          <div class="spark">
+            <div style="height:52%"></div><div style="height:61%"></div><div style="height:48%"></div>
+            <div style="height:70%"></div><div style="height:66%"></div><div style="height:83%"></div>
+            <div style="height:74%"></div><div class="bad" style="height:96%"></div>
+            <div class="bad" style="height:88%"></div><div style="height:59%"></div>
+            <div style="height:64%"></div><div style="height:55%"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h4>Integration health</h4>
+          <div class="rows">
+            <div class="row"><span class="pill bad">Unhealthy</span><span class="name">bruno-to-groq</span><span class="meta">31.4%</span></div>
+            <div class="row"><span class="pill ok">Healthy</span><span class="name">bruno-to-openai</span><span class="meta">0.2%</span></div>
+            <div class="row"><span class="pill warn">Degraded</span><span class="name">uploads-to-s3</span><span class="meta">6.8%</span></div>
+            <div class="row"><span class="pill ok">Healthy</span><span class="name">payments-to-stripe</span><span class="meta">0.0%</span></div>
+            <div class="row"><span class="pill ok">Healthy</span><span class="name">prisma-to-postgres</span><span class="meta">0.0%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="border-color:#7f1d1d;background:rgba(127,29,29,.12)">
+        <div class="row">
+          <span class="pill bad">Open incident</span>
+          <span class="name">bruno-to-groq has been unhealthy for 34 minutes</span>
+          <span class="meta">opened 11:04</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="cap">Groq started refusing. OpenAI picked up the load. One of those is an incident; the other is Tuesday.</p>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <h2>Three steps, then it watches itself</h2>
+    <p class="tight">No agent to run, no collector to operate, no sampling to tune. One file in
+      your application and a key.</p>
+
+    <div class="steps" style="margin-top:34px">
+      <div class="step">
+        <div class="dot">1</div>
+        <div>
+          <h3>Point it at your instance</h3>
+          <p>Two environment variables. Leave the key unset and the client is inert, so tests
+             and local runs send nothing.</p>
+          <pre><span class="c-key">ICC_URL</span>=https://integrations.your-domain
+<span class="c-key">ICC_API_KEY</span>=iop_…</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot">2</div>
+        <div>
+          <h3>Name the calls you care about</h3>
+          <p>Wrap an outbound call and give the edge a name. The first event creates it, so there
+             is nothing to model up front.</p>
+          <pre>await observability.<span class="c-key">track</span>(<span class="c-str">"bruno-to-groq"</span>, () =&gt;
+  groq.chat.completions.create(params))</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot">3</div>
+        <div>
+          <h3>Watch it fill in</h3>
+          <p>Every call one request caused is correlated into a trace. Health is re-derived on a
+             timer, so a status change is noticed while nobody is looking, and incidents open and
+             close on their own.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What it gets right</h2>
+    <div class="grid g2" style="margin-top:30px">
+      <div class="card">
+        <div class="num">01</div>
+        <h3>A refusal is not an outage</h3>
+        <p>A 429 is recorded as rejected, not failed. The dependency is working and telling you to
+           slow down. Counting that as downtime makes a noisy client look like a broken service,
+           and teaches everyone to ignore the dashboard.</p>
+      </div>
+      <div class="card">
+        <div class="num">02</div>
+        <h3>A fallback is two integrations</h3>
+        <p>When your primary sheds load and your backup absorbs it, that is the system working.
+           Report each leg separately and you can see it. Merge them and it looks like an outage
+           in something that never broke.</p>
+      </div>
+      <div class="card">
+        <div class="num">03</div>
+        <h3>It cannot hurt the thing it watches</h3>
+        <p>Recording costs an array push. Sending happens on a timer. Every path swallows its own
+           errors, the queue is bounded, and a batch that can never succeed is dropped rather than
+           retried forever.</p>
+      </div>
+      <div class="card">
+        <div class="num">04</div>
+        <h3>Six call sites, six numbers</h3>
+        <p>Calling one provider from six places is six integrations, not one. A failure in recipe
+           tagging should not drag down the health of payments just because they share a vendor.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="open">
+  <div class="wrap">
+    <h2>Open source, and staying that way</h2>
+    <div class="tight">
+      <p>Good tools should not be rationed by budget. Everything here is free and open source,
+         and no capability is held back behind a paid tier. There is no Enterprise edition, no
+         seat limit, no feature that quietly stops working past some threshold.</p>
+      <p>This is not a growth tactic. Too many promising projects start open and slowly close:
+         first a feature flag, then an edition, then a licence change, and the thing you built
+         your work on is no longer the thing you adopted. That pattern is the reason this is
+         licensed under the AGPL rather than a permissive licence. Run it, change it, share it.
+         If you run a modified version as a service for other people, publish your changes too.</p>
+      <p>Self-hosting is the first-class path, not the degraded one. There is no hosted tier that
+         gets the good version. If a hosted option ever exists, it will exist because running
+         servers is a chore some people would rather pay to avoid, and it will run this same
+         code.</p>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Run it yourself</h2>
+    <p class="tight">Three images and a Postgres. Nothing is built on your server, and nothing
+      phones home. A small VPS is plenty.</p>
+
+    <div class="grid g2" style="margin-top:28px; align-items:start">
+      <div>
+        <pre>curl -O https://raw.githubusercontent.com/\
+FredrikHillbert/nexus/master/\
+docker-compose.production.yml
+
+<span class="c-com"># three settings, then:</span>
+docker compose -f docker-compose.production.yml up -d</pre>
+      </div>
+      <div class="card">
+        <h3>What you need</h3>
+        <p style="margin-bottom:10px">A host with Docker, a domain pointed at it, and about 1 GB
+           of RAM. Identity, migrations and partitioning all set themselves up on first boot.</p>
+        <p>Deploying with Coolify takes the same file: point it at the repository, give the web
+           service your domain, set three variables.</p>
+        <p style="margin-top:14px">
+          <a class="btn ghost small" href="https://github.com/FredrikHillbert/nexus#self-hosting">Full instructions</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <span>Integration Control Center</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/FredrikHillbert/nexus">Source</a>
+    <a href="https://github.com/FredrikHillbert/nexus/blob/master/LICENSE">AGPL-3.0</a>
+    <a href="https://github.com/FredrikHillbert/nexus/issues">Issues</a>
+  </div>
+</footer>
+
+</body>
+</html>

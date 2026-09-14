@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.name, s.slug AS \"system_slug!\", i.metadata\n           FROM integrations i\n           JOIN components c ON c.id = i.source_component_id\n           JOIN systems s ON s.id = c.system_id\n           WHERE i.organization_id = $1 AND i.slug = 'orders-to-warehouse'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "system_slug!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e7bbc717e6067cda636e89bb436cbaad6037d28970991ccb0dd737a7914cc502"
+}

@@ -6,9 +6,19 @@ use uuid::Uuid;
 use super::model::TelemetryStatus;
 
 /// One event inside an ingest batch.
+///
+/// The integration is named either by `integration` (its slug) or by
+/// `integration_id`. Exactly one is required.
+///
+/// Prefer the slug. It is stable across instances, so the same build reports
+/// to a laptop and to production without a generated file of ids that has to
+/// be kept in step with one particular database.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct IngestEvent {
-    pub integration_id: Uuid,
+    /// Slug of the integration, e.g. "bruno-to-groq".
+    pub integration: Option<String>,
+    /// Id of the integration. Accepted for existing clients.
+    pub integration_id: Option<Uuid>,
     /// Defaults to now if the client does not timestamp its own event.
     pub occurred_at: Option<DateTime<Utc>>,
     pub status: TelemetryStatus,

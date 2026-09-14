@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::error::ApiError;
@@ -65,26 +66,46 @@ pub async fn insert_batch(db: &PgPool, org_id: Uuid, cols: &EventColumns) -> Res
     Ok(result.rows_affected())
 }
 
-/// How many of these integration ids exist in this organization?
+/// Which of these integration ids exist in this organization.
 ///
-/// One query rather than one per event: the service compares the count to the
-/// number of distinct ids it asked about.
-pub async fn count_integrations_in_org(
+/// Returns the ones found rather than a count, so the caller can name the ones
+/// that are missing instead of saying that something, somewhere, is wrong.
+pub async fn existing_integration_ids(
     db: &PgPool,
     org_id: Uuid,
     ids: &[Uuid],
-) -> Result<i64, ApiError> {
-    let count = sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!"
-           FROM integrations
+) -> Result<HashSet<Uuid>, ApiError> {
+    let rows = sqlx::query_scalar!(
+        r#"SELECT id FROM integrations
            WHERE organization_id = $1 AND id = ANY($2::uuid[])"#,
         org_id,
         ids
     )
-    .fetch_one(db)
+    .fetch_all(db)
     .await?;
 
-    Ok(count)
+    Ok(rows.into_iter().collect())
+}
+
+/// Maps integration slugs to their ids, omitting any that do not exist.
+///
+/// One query for the whole batch: an ingest of 500 events referencing six
+/// integrations should cost one lookup, not five hundred.
+pub async fn resolve_slugs(
+    db: &PgPool,
+    org_id: Uuid,
+    slugs: &[String],
+) -> Result<HashMap<String, Uuid>, ApiError> {
+    let rows = sqlx::query!(
+        r#"SELECT id, slug FROM integrations
+           WHERE organization_id = $1 AND slug = ANY($2::text[])"#,
+        org_id,
+        slugs
+    )
+    .fetch_all(db)
+    .await?;
+
+    Ok(rows.into_iter().map(|row| (row.slug, row.id)).collect())
 }
 
 /// Ensures the monthly partitions around now exist. Called at startup.
@@ -257,4 +278,90 @@ pub async fn series(
     .await?;
 
     Ok(rows)
+}
+
+/// Creates any of these slugs that do not exist yet, and returns the full map.
+///
+/// An auto-created integration still has to point somewhere, because both
+/// endpoints are NOT NULL. It points at a placeholder pair under an "Unmapped"
+/// system until someone wires it up, which keeps the graph honest: the call is
+/// known to happen, what it runs between is not.
+///
+/// Everything is `ON CONFLICT DO NOTHING` inside one transaction, so two
+/// workers ingesting the same new slug at the same time produce one row rather
+/// than a unique-violation for the loser.
+pub async fn ensure_integrations(
+    db: &PgPool,
+    org_id: Uuid,
+    slugs: &[String],
+) -> Result<HashMap<String, Uuid>, ApiError> {
+    let mut tx = db.begin().await?;
+
+    // `DO UPDATE SET slug = EXCLUDED.slug` is a no-op write whose only purpose
+    // is to make RETURNING produce a row on conflict as well as on insert.
+    let system = sqlx::query_scalar!(
+        r#"INSERT INTO systems (organization_id, name, slug, system_type, description)
+           VALUES ($1, 'Unmapped', 'unmapped', 'OTHER',
+                   'Integrations discovered from telemetry that nobody has wired up yet.')
+           ON CONFLICT (organization_id, slug) DO UPDATE SET slug = EXCLUDED.slug
+           RETURNING id"#,
+        org_id
+    )
+    .fetch_one(&mut *tx)
+    .await?;
+
+    let mut endpoints = Vec::with_capacity(2);
+    for (name, slug) in [("Caller", "caller"), ("Dependency", "dependency")] {
+        let id = sqlx::query_scalar!(
+            r#"INSERT INTO components (system_id, name, slug, component_type)
+               VALUES ($1, $2, $3, 'OTHER')
+               ON CONFLICT (system_id, slug) DO UPDATE SET slug = EXCLUDED.slug
+               RETURNING id"#,
+            system,
+            name,
+            slug
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+        endpoints.push(id);
+    }
+
+    // A built-in type, so it is shared rather than owned by this organization.
+    let integration_type = sqlx::query_scalar!(
+        r#"SELECT id FROM integration_types
+           WHERE key = 'HTTP' AND organization_id IS NULL"#
+    )
+    .fetch_one(&mut *tx)
+    .await?;
+
+    // The name is the slug on purpose. It reads as unfinished, which it is,
+    // and renaming it in the UI leaves the slug alone so the code keeps working.
+    sqlx::query!(
+        r#"INSERT INTO integrations
+             (organization_id, name, slug, source_component_id,
+              destination_component_id, integration_type_id, metadata)
+           SELECT $1, slug, slug, $3, $4, $5, '{"discovered": true}'::jsonb
+           FROM unnest($2::text[]) AS slug
+           ON CONFLICT (organization_id, slug) DO NOTHING"#,
+        org_id,
+        slugs,
+        endpoints[0],
+        endpoints[1],
+        integration_type
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let rows = sqlx::query!(
+        r#"SELECT id, slug FROM integrations
+           WHERE organization_id = $1 AND slug = ANY($2::text[])"#,
+        org_id,
+        slugs
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(rows.into_iter().map(|row| (row.slug, row.id)).collect())
 }

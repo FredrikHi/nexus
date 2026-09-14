@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO integrations\n             (organization_id, name, slug, source_component_id,\n              destination_component_id, integration_type_id, metadata)\n           SELECT $1, slug, slug, $3, $4, $5, '{\"discovered\": true}'::jsonb\n           FROM unnest($2::text[]) AS slug\n           ON CONFLICT (organization_id, slug) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6ef8731e1d2374208595636d8470072cfa9a31515d831dfe66426a53b6b640d1"
+}

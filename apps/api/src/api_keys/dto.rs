@@ -13,4 +13,11 @@ pub struct CreateApiKey {
     pub environment_id: Option<Uuid>,
     /// Optional expiry. A key with no expiry is valid until revoked.
     pub expires_at: Option<DateTime<Utc>>,
+    /// Let telemetry create integrations this organization has never seen.
+    ///
+    /// Useful while instrumenting an application, so it can report before its
+    /// landscape is modelled. Off by default: against a complete landscape a
+    /// misspelled slug should be refused rather than quietly create a row.
+    #[serde(default)]
+    pub allow_auto_create: bool,
 }

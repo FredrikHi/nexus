@@ -47,20 +47,70 @@ pub async fn ingest(
     let earliest = now - Duration::days(MAX_BACKDATE_DAYS);
     let latest = now + Duration::minutes(MAX_CLOCK_SKEW_MINUTES);
 
-    // Verify every referenced integration in one query rather than per event.
-    let unique: Vec<Uuid> = batch
-        .events
+    // Each event names its integration by slug or by id. Both kinds are
+    // resolved up front, so a 500-event batch costs two lookups rather than
+    // five hundred.
+    let mut slugs: HashSet<String> = HashSet::new();
+    let mut ids: HashSet<Uuid> = HashSet::new();
+
+    for (index, event) in batch.events.iter().enumerate() {
+        match (event.integration.as_deref(), event.integration_id) {
+            (Some(slug), None) => {
+                slugs.insert(slug.to_string());
+            }
+            (None, Some(id)) => {
+                ids.insert(id);
+            }
+            (Some(_), Some(_)) => {
+                return Err(ApiError::Validation(format!(
+                    "events[{index}] sets both integration and integration_id; use one"
+                )))
+            }
+            (None, None) => {
+                return Err(ApiError::Validation(format!(
+                    "events[{index}] must set integration (the slug) or integration_id"
+                )))
+            }
+        }
+    }
+
+    let ids: Vec<Uuid> = ids.into_iter().collect();
+    let known_ids = repository::existing_integration_ids(db, auth.organization_id, &ids).await?;
+    // Naming what was not found turns a support question into a fix. The old
+    // message said only that something in the batch was wrong.
+    let unknown: Vec<String> = ids
         .iter()
-        .map(|e| e.integration_id)
-        .collect::<HashSet<_>>()
-        .into_iter()
+        .filter(|id| !known_ids.contains(id))
+        .map(|id| id.to_string())
+        .collect();
+    if !unknown.is_empty() {
+        return Err(ApiError::Validation(format!(
+            "no integration in this organization has id: {}",
+            unknown.join(", ")
+        )));
+    }
+
+    let wanted: Vec<String> = slugs.into_iter().collect();
+    let mut by_slug = repository::resolve_slugs(db, auth.organization_id, &wanted).await?;
+
+    let unknown: Vec<String> = wanted
+        .iter()
+        .filter(|slug| !by_slug.contains_key(*slug))
+        .cloned()
         .collect();
 
-    let found = repository::count_integrations_in_org(db, auth.organization_id, &unique).await?;
-    if found != unique.len() as i64 {
-        return Err(ApiError::Validation(
-            "one or more integration_id values do not exist in this organization".to_string(),
-        ));
+    if !unknown.is_empty() {
+        if !auth.allow_auto_create {
+            return Err(ApiError::Validation(format!(
+                "no integration in this organization has slug: {}",
+                unknown.join(", ")
+            )));
+        }
+        // This key is allowed to describe its own landscape, so a slug nobody
+        // has modelled yet becomes an integration rather than a refusal. It
+        // lands under the Unmapped system for someone to wire up later.
+        let created = repository::ensure_integrations(db, auth.organization_id, &unknown).await?;
+        by_slug.extend(created);
     }
 
     // Transpose row-shaped input into column-shaped arrays for the bulk insert.
@@ -109,7 +159,21 @@ pub async fn ingest(
             (None, claimed) => claimed,
         };
 
-        cols.integration_id.push(event.integration_id);
+        let integration_id = match (event.integration.as_deref(), event.integration_id) {
+            (Some(slug), _) => *by_slug.get(slug).ok_or_else(|| {
+                ApiError::Internal(format!(
+                    "slug '{slug}' resolved before the loop but not inside it"
+                ))
+            })?,
+            (None, Some(id)) => id,
+            (None, None) => {
+                return Err(ApiError::Validation(format!(
+                    "events[{index}] must name an integration"
+                )))
+            }
+        };
+
+        cols.integration_id.push(integration_id);
         cols.environment_id.push(environment_id);
         cols.occurred_at.push(occurred_at);
         cols.status.push(event.status.as_str().to_string());

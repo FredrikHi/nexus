@@ -14,6 +14,8 @@ pub struct ApiKey {
     pub name: String,
     pub prefix: String,
     pub environment_id: Option<Uuid>,
+    /// When true, telemetry naming an unknown integration slug creates it.
+    pub allow_auto_create: bool,
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
@@ -45,4 +47,6 @@ pub struct AuthenticatedKey {
     pub organization_id: Uuid,
     /// When set, the key may only write events for this environment.
     pub environment_id: Option<Uuid>,
+    /// When true, an unknown integration slug is created rather than refused.
+    pub allow_auto_create: bool,
 }
