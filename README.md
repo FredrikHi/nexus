@@ -5,6 +5,10 @@
 </p>
 
 <p align="center">
+  <a href="https://fredrikhillbert.github.io/nexus/">fredrikhillbert.github.io/nexus</a>
+</p>
+
+<p align="center">
   <img alt="License" src="https://img.shields.io/github/license/FredrikHillbert/nexus?style=for-the-badge&color=4c1">
   <img alt="Stars" src="https://img.shields.io/github/stars/FredrikHillbert/nexus?style=for-the-badge&logo=github&color=f5c518">
   <img alt="Latest release" src="https://img.shields.io/github/v/release/FredrikHillbert/nexus?style=for-the-badge&logo=github&color=6f42c1&sort=semver">
@@ -34,8 +38,11 @@ catalogue of supported services.
 
 ## Features
 
+- **Nothing to model up front.** Name an integration in your code and the first
+  event creates it. Describe the landscape deliberately in a JSON file instead
+  when you would rather review it in a pull request.
 - **Landscape as data.** Systems, the components inside them, and the
-  integrations between them. Model it in a JSON file and apply it from CI.
+  integrations between them, all editable in the UI or applied from a file.
 - **Telemetry that cannot hurt you.** The client queues in memory, flushes on a
   timer, drops rather than grows, and swallows its own errors.
 - **Traces.** Every call one request caused, correlated automatically.
@@ -153,20 +160,39 @@ Telemetry costs roughly 580 bytes an event. A million events a month is about
 
 ## Sending it data
 
-Empty until something reports to it. The Node client is one file with no
-dependencies: see [clients/node](clients/node).
+Empty until something reports to it. Under **Administration, API keys**,
+create one and leave *Create unknown integrations* ticked. The token is shown
+once and stored only as a hash. Then in your application:
 
-Model your landscape as a file and apply it, rather than clicking it together
-once:
-
-```bash
-node scripts/apply-landscape.mjs my-landscape.json \
-  --url "$APP_URL" --token "$TOKEN" --org "$ORG_ID" \
-  --emit src/lib/integrations.ts
+```ts
+await observability.track("orders-to-stripe", () => stripe.charges.create(...))
 ```
 
-Re-running creates only what is missing, so keep the file in version control
-beside the code it describes. `examples/cookly.landscape.json` is a real one.
+That is the whole setup. The first event naming `orders-to-stripe` creates that
+integration, so there is nothing to model up front and no generated file of
+identifiers to keep in step with one particular database. The same build
+reports to a laptop and to production, and the environment comes from the key
+rather than the code.
+
+Discovered integrations land under a placeholder system called **Unmapped**.
+Wire them to their real endpoints in the UI when you are ready; renaming one
+keeps its slug, so the code goes on working. Turn auto-create off once the
+picture is complete, and a misspelled slug becomes a refusal again rather than
+a new row.
+
+The Node client is one file with no dependencies: see
+[clients/node](clients/node). It never throws, never blocks a request, and
+drops telemetry rather than growing without bound.
+
+Prefer to describe the landscape deliberately and review it in a pull request?
+Apply a file instead, and keep auto-create off:
+
+```bash
+node scripts/apply-landscape.mjs my-landscape.json   --url "$APP_URL" --token "$TOKEN" --org "$ORG_ID"
+```
+
+Re-running creates only what is missing. `examples/cookly.landscape.json` is a
+real one.
 
 ## Development
 

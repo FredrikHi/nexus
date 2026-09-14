@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO components (system_id, name, slug, component_type)\n               VALUES ($1, $2, $3, 'OTHER')\n               ON CONFLICT (system_id, slug) DO UPDATE SET slug = EXCLUDED.slug\n               RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c875acee713ea0489b4c70e0c152ece9baf8fdad0c316606b259189453e784fe"
+}

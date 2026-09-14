@@ -218,3 +218,23 @@ export interface Member {
   role: OrgRole
   joined_at: string
 }
+
+export interface ApiKey {
+  id: string
+  organization_id: string
+  name: string
+  /** Leading, non-secret slice of the token, so two keys can be told apart. */
+  prefix: string
+  environment_id: string | null
+  allow_auto_create: boolean
+  last_used_at: string | null
+  expires_at: string | null
+  revoked_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** The create response, and the only time the plaintext token exists. */
+export interface CreatedApiKey extends ApiKey {
+  token: string
+}

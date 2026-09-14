@@ -21,7 +21,18 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 export type TelemetryStatus = 'SUCCESS' | 'FAILURE' | 'TIMEOUT' | 'REJECTED'
 
 export interface TelemetryEvent {
-  integration_id: string
+  /**
+   * Which integration this call crossed, named by its slug: "bruno-to-groq".
+   *
+   * Prefer the slug over an id. It is the same in every instance, so one
+   * build reports to a laptop and to production without a generated file of
+   * ids that has to be kept in step with one particular database.
+   *
+   * A UUID is accepted here too, and forwarded as an id.
+   */
+  integration?: string
+  /** @deprecated Pass the slug as `integration` instead. */
+  integration_id?: string
   status: TelemetryStatus
   occurred_at?: string
   duration_ms?: number
@@ -65,6 +76,19 @@ const DEFAULTS = {
  * it correlates automatically.
  */
 const traceStorage = new AsyncLocalStorage<{ traceId: string }>()
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The collector takes a slug or an id, in separate fields, and refuses an
+ * event that sets both. Callers should not have to care which they hold, so
+ * the shape is decided here from the value itself.
+ */
+function reference(event: TelemetryEvent): Pick<TelemetryEvent, 'integration' | 'integration_id'> {
+  const named = event.integration ?? event.integration_id
+  if (!named) return {}
+  return UUID.test(named) ? { integration_id: named } : { integration: named }
+}
 
 /** The trace id in scope, if any. */
 export function currentTraceId(): string | undefined {
@@ -183,6 +207,7 @@ export class Observability {
       occurred_at: new Date().toISOString(),
       trace_id: currentTraceId(),
       ...event,
+      ...reference(event),
     })
 
     if (this.queue.length >= this.options.maxBatch) void this.flush()
@@ -195,7 +220,7 @@ export class Observability {
    * alters the behaviour of the code around it.
    */
   async track<T>(
-    integrationId: string,
+    integration: string,
     fn: () => Promise<T>,
     options: { operation?: string; metadata?: Record<string, unknown> } = {},
   ): Promise<T> {
@@ -205,7 +230,7 @@ export class Observability {
     try {
       const result = await fn()
       this.record({
-        integration_id: integrationId,
+        integration,
         status: 'SUCCESS',
         occurred_at: occurredAt,
         duration_ms: Date.now() - startedAt,
@@ -215,7 +240,7 @@ export class Observability {
       return result
     } catch (error) {
       this.record({
-        integration_id: integrationId,
+        integration,
         occurred_at: occurredAt,
         duration_ms: Date.now() - startedAt,
         operation: options.operation,

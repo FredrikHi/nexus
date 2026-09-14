@@ -6,28 +6,35 @@ use crate::error::ApiError;
 
 use super::model::{ApiKey, AuthenticatedKey};
 
-pub async fn insert(
-    db: &PgPool,
-    org_id: Uuid,
-    name: &str,
-    prefix: &str,
-    token_hash: &str,
-    environment_id: Option<Uuid>,
-    expires_at: Option<DateTime<Utc>>,
-) -> Result<ApiKey, ApiError> {
+/// Everything needed to store a new key.
+///
+/// A struct rather than eight positional arguments, three of which are strings
+/// that would compile perfectly well in the wrong order.
+pub struct NewApiKey<'a> {
+    pub name: &'a str,
+    pub prefix: &'a str,
+    pub token_hash: &'a str,
+    pub environment_id: Option<Uuid>,
+    pub expires_at: Option<DateTime<Utc>>,
+    pub allow_auto_create: bool,
+}
+
+pub async fn insert(db: &PgPool, org_id: Uuid, new: NewApiKey<'_>) -> Result<ApiKey, ApiError> {
     let key = sqlx::query_as!(
         ApiKey,
         r#"INSERT INTO api_keys
-             (organization_id, name, prefix, token_hash, environment_id, expires_at)
-           VALUES ($1,$2,$3,$4,$5,$6)
-           RETURNING id, organization_id, name, prefix, environment_id,
+             (organization_id, name, prefix, token_hash, environment_id, expires_at,
+              allow_auto_create)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)
+           RETURNING id, organization_id, name, prefix, environment_id, allow_auto_create,
                      last_used_at, expires_at, revoked_at, created_at, updated_at"#,
         org_id,
-        name,
-        prefix,
-        token_hash,
-        environment_id,
-        expires_at
+        new.name,
+        new.prefix,
+        new.token_hash,
+        new.environment_id,
+        new.expires_at,
+        new.allow_auto_create
     )
     .fetch_one(db)
     .await?;
@@ -38,7 +45,7 @@ pub async fn insert(
 pub async fn list_by_org(db: &PgPool, org_id: Uuid) -> Result<Vec<ApiKey>, ApiError> {
     let keys = sqlx::query_as!(
         ApiKey,
-        r#"SELECT id, organization_id, name, prefix, environment_id,
+        r#"SELECT id, organization_id, name, prefix, environment_id, allow_auto_create,
                   last_used_at, expires_at, revoked_at, created_at, updated_at
            FROM api_keys
            WHERE organization_id = $1
@@ -60,7 +67,7 @@ pub async fn revoke(db: &PgPool, org_id: Uuid, id: Uuid) -> Result<Option<ApiKey
         r#"UPDATE api_keys
            SET revoked_at = now()
            WHERE id = $1 AND organization_id = $2 AND revoked_at IS NULL
-           RETURNING id, organization_id, name, prefix, environment_id,
+           RETURNING id, organization_id, name, prefix, environment_id, allow_auto_create,
                      last_used_at, expires_at, revoked_at, created_at, updated_at"#,
         id,
         org_id
@@ -83,7 +90,8 @@ pub async fn authenticate(
 ) -> Result<Option<AuthenticatedKey>, ApiError> {
     let found = sqlx::query_as!(
         AuthenticatedKey,
-        r#"SELECT id AS "api_key_id!", organization_id AS "organization_id!", environment_id
+        r#"SELECT id AS "api_key_id!", organization_id AS "organization_id!", environment_id,
+                  allow_auto_create AS "allow_auto_create!"
            FROM api_keys
            WHERE token_hash = $1
              AND revoked_at IS NULL

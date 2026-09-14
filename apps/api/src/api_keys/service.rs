@@ -39,11 +39,14 @@ pub async fn create(
     let key = repository::insert(
         db,
         org_id,
-        name,
-        &generated.prefix,
-        &generated.token_hash,
-        input.environment_id,
-        input.expires_at,
+        repository::NewApiKey {
+            name,
+            prefix: &generated.prefix,
+            token_hash: &generated.token_hash,
+            environment_id: input.environment_id,
+            expires_at: input.expires_at,
+            allow_auto_create: input.allow_auto_create,
+        },
     )
     .await?;
 

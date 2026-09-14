@@ -17,6 +17,7 @@ const Teams = lazy(() => import('./features/admin/Teams').then((m) => ({ default
 const Environments = lazy(() =>
   import('./features/admin/Environments').then((m) => ({ default: m.Environments })),
 )
+const ApiKeys = lazy(() => import('./features/admin/ApiKeys').then((m) => ({ default: m.ApiKeys })))
 const IntegrationTypes = lazy(() =>
   import('./features/admin/IntegrationTypes').then((m) => ({ default: m.IntegrationTypes })),
 )
@@ -44,6 +45,7 @@ const NAV: { section: string | null; items: { to: string; label: string; end?: b
     { to: '/teams', label: 'Teams' },
     { to: '/environments', label: 'Environments' },
     { to: '/integration-types', label: 'Integration Types' },
+    { to: '/api-keys', label: 'API Keys' },
   ] },
 ]
 
@@ -144,6 +146,7 @@ function Shell({ me }: { me: Me }) {
           <Route path="/teams" element={<Teams />} />
           <Route path="/environments" element={<Environments />} />
           <Route path="/integration-types" element={<IntegrationTypes />} />
+          <Route path="/api-keys" element={<ApiKeys />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

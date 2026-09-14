@@ -85,15 +85,36 @@ fn auth(org: Uuid, environment_id: Option<Uuid>) -> AuthenticatedKey {
         api_key_id: Uuid::from_u128(42),
         organization_id: org,
         environment_id,
+        allow_auto_create: false,
     }
 }
 
 fn event(integration_id: Uuid, status: TelemetryStatus, duration_ms: Option<i32>) -> IngestEvent {
     IngestEvent {
-        integration_id,
+        integration: None,
+        integration_id: Some(integration_id),
         occurred_at: None,
         status,
         duration_ms,
+        trace_id: None,
+        operation: None,
+        status_code: None,
+        error_type: None,
+        error_message: None,
+        payload_bytes: None,
+        environment_id: None,
+        metadata: serde_json::Value::Null,
+    }
+}
+
+/// The same event, named by slug rather than by id.
+fn event_by_slug(slug: &str, status: TelemetryStatus) -> IngestEvent {
+    IngestEvent {
+        integration: Some(slug.to_string()),
+        integration_id: None,
+        occurred_at: None,
+        status,
+        duration_ms: None,
         trace_id: None,
         operation: None,
         status_code: None,
@@ -131,9 +152,13 @@ async fn a_key_cannot_write_to_another_organizations_integration(pool: PgPool) {
 
     match result {
         Err(ApiError::Validation(message)) => {
+            // The id is real, so the refusal is about tenancy rather than
+            // existence. From this caller's side those are the same answer,
+            // deliberately: a different message would confirm the id exists
+            // somewhere, which is an enumeration oracle.
             assert!(
-                message.contains("integration_id"),
-                "unexpected message: {message}"
+                message.contains(&theirs.to_string()),
+                "the error must name the id it refused, got: {message}"
             );
         }
         other => panic!("expected a validation error, got {other:?}"),
@@ -297,4 +322,202 @@ async fn error_rate_excludes_rejected(pool: PgPool) {
         "error_rate was {}",
         summary.error_rate
     );
+}
+
+/// The point of slugs: the same build can report to any instance, because the
+/// name is stable while the generated id is not.
+#[sqlx::test]
+async fn a_slug_names_the_same_integration_as_its_id(pool: PgPool) {
+    let integration = seed_integration(&pool, DEFAULT_ORG, "bruno-to-groq").await;
+
+    let batch = IngestBatch {
+        events: vec![
+            event(integration, TelemetryStatus::Success, Some(10)),
+            event_by_slug("bruno-to-groq", TelemetryStatus::Success),
+        ],
+    };
+
+    let result = service::ingest(&pool, auth(DEFAULT_ORG, None), batch)
+        .await
+        .expect("both forms accepted");
+    assert_eq!(result.accepted, 2);
+
+    // Both landed on the same row, which is what "the same integration" means.
+    let against: i64 = sqlx::query_scalar!(
+        r#"SELECT count(*) AS "n!" FROM telemetry_events WHERE integration_id = $1"#,
+        integration
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count");
+    assert_eq!(against, 2);
+}
+
+/// A misspelled slug should say which one, not that something somewhere failed.
+#[sqlx::test]
+async fn an_unknown_slug_is_named_in_the_error(pool: PgPool) {
+    seed_integration(&pool, DEFAULT_ORG, "bruno-to-groq").await;
+
+    let batch = IngestBatch {
+        events: vec![event_by_slug("bruno-to-grok", TelemetryStatus::Success)],
+    };
+
+    let error = service::ingest(&pool, auth(DEFAULT_ORG, None), batch)
+        .await
+        .expect_err("unknown slug is refused");
+
+    match error {
+        ApiError::Validation(message) => {
+            assert!(
+                message.contains("bruno-to-grok"),
+                "the error must name the slug it could not find, got: {message}"
+            );
+        }
+        other => panic!("expected a validation error, got {other:?}"),
+    }
+
+    assert_eq!(stored_events(&pool).await, 0, "nothing is written");
+}
+
+/// Naming an integration twice, two different ways, is a bug in the caller
+/// rather than something to guess at.
+#[sqlx::test]
+async fn naming_both_a_slug_and_an_id_is_refused(pool: PgPool) {
+    let integration = seed_integration(&pool, DEFAULT_ORG, "bruno-to-groq").await;
+
+    let mut both = event_by_slug("bruno-to-groq", TelemetryStatus::Success);
+    both.integration_id = Some(integration);
+
+    let error = service::ingest(
+        &pool,
+        auth(DEFAULT_ORG, None),
+        IngestBatch { events: vec![both] },
+    )
+    .await
+    .expect_err("ambiguous event is refused");
+
+    assert!(matches!(error, ApiError::Validation(_)));
+    assert_eq!(stored_events(&pool).await, 0);
+}
+
+/// A slug belongs to one organization. Another tenant's slug must not resolve,
+/// even when the word is identical.
+#[sqlx::test]
+async fn a_slug_does_not_cross_organizations(pool: PgPool) {
+    let other_org = Uuid::from_u128(999);
+    seed_integration(&pool, other_org, "bruno-to-groq").await;
+    seed_integration(&pool, DEFAULT_ORG, "something-else").await;
+
+    let batch = IngestBatch {
+        events: vec![event_by_slug("bruno-to-groq", TelemetryStatus::Success)],
+    };
+
+    let error = service::ingest(&pool, auth(DEFAULT_ORG, None), batch)
+        .await
+        .expect_err("another tenant's slug must not resolve");
+
+    assert!(matches!(error, ApiError::Validation(_)));
+    assert_eq!(stored_events(&pool).await, 0);
+}
+
+/// A key may be allowed to describe its own landscape, so an application can
+/// report before anyone has modelled it.
+fn auth_discovering(org: Uuid) -> AuthenticatedKey {
+    AuthenticatedKey {
+        api_key_id: Uuid::from_u128(43),
+        organization_id: org,
+        environment_id: None,
+        allow_auto_create: true,
+    }
+}
+
+#[sqlx::test]
+async fn an_unknown_slug_is_created_when_the_key_allows_it(pool: PgPool) {
+    // Seeding one integration also creates the organization the key belongs to.
+    seed_integration(&pool, DEFAULT_ORG, "already-known").await;
+
+    let batch = IngestBatch {
+        events: vec![event_by_slug(
+            "orders-to-warehouse",
+            TelemetryStatus::Success,
+        )],
+    };
+
+    let result = service::ingest(&pool, auth_discovering(DEFAULT_ORG), batch)
+        .await
+        .expect("an unknown slug is created rather than refused");
+    assert_eq!(result.accepted, 1);
+
+    let created = sqlx::query!(
+        r#"SELECT i.name, s.slug AS "system_slug!", i.metadata
+           FROM integrations i
+           JOIN components c ON c.id = i.source_component_id
+           JOIN systems s ON s.id = c.system_id
+           WHERE i.organization_id = $1 AND i.slug = 'orders-to-warehouse'"#,
+        DEFAULT_ORG
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("the integration exists");
+
+    // Parked under a placeholder, so the graph says what is actually known:
+    // the call happens, what it runs between has not been decided.
+    assert_eq!(created.system_slug, "unmapped");
+    assert_eq!(created.name, "orders-to-warehouse");
+    assert_eq!(created.metadata["discovered"], serde_json::json!(true));
+}
+
+#[sqlx::test]
+async fn a_discovered_slug_is_created_once(pool: PgPool) {
+    seed_integration(&pool, DEFAULT_ORG, "already-known").await;
+
+    for _ in 0..3 {
+        service::ingest(
+            &pool,
+            auth_discovering(DEFAULT_ORG),
+            IngestBatch {
+                events: vec![event_by_slug(
+                    "orders-to-warehouse",
+                    TelemetryStatus::Success,
+                )],
+            },
+        )
+        .await
+        .expect("ingest");
+    }
+
+    let rows: i64 = sqlx::query_scalar!(
+        r#"SELECT count(*) AS "n!" FROM integrations
+           WHERE organization_id = $1 AND slug = 'orders-to-warehouse'"#,
+        DEFAULT_ORG
+    )
+    .fetch_one(&pool)
+    .await
+    .expect("count");
+
+    assert_eq!(rows, 1, "repeated ingest must reuse the integration");
+    assert_eq!(stored_events(&pool).await, 3);
+}
+
+/// Auto-creation is a property of the key, not of the platform. A key without
+/// it still gets a plain refusal.
+#[sqlx::test]
+async fn an_unknown_slug_is_still_refused_without_the_flag(pool: PgPool) {
+    seed_integration(&pool, DEFAULT_ORG, "already-known").await;
+
+    let error = service::ingest(
+        &pool,
+        auth(DEFAULT_ORG, None),
+        IngestBatch {
+            events: vec![event_by_slug(
+                "orders-to-warehouse",
+                TelemetryStatus::Success,
+            )],
+        },
+    )
+    .await
+    .expect_err("refused");
+
+    assert!(matches!(error, ApiError::Validation(_)));
+    assert_eq!(stored_events(&pool).await, 0);
 }

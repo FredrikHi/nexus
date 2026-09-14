@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"n!\" FROM integrations\n           WHERE organization_id = $1 AND slug = 'orders-to-warehouse'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "98f576626260f87aee6bf7ea3cd1c644ab65654ff46cfcd17b351cf8f97de5b5"
+}

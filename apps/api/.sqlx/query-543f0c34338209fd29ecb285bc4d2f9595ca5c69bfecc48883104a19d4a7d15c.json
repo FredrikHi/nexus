@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO api_keys\n             (organization_id, name, prefix, token_hash, environment_id, expires_at)\n           VALUES ($1,$2,$3,$4,$5,$6)\n           RETURNING id, organization_id, name, prefix, environment_id,\n                     last_used_at, expires_at, revoked_at, created_at, updated_at",
+  "query": "UPDATE api_keys\n           SET revoked_at = now()\n           WHERE id = $1 AND organization_id = $2 AND revoked_at IS NULL\n           RETURNING id, organization_id, name, prefix, environment_id, allow_auto_create,\n                     last_used_at, expires_at, revoked_at, created_at, updated_at",
   "describe": {
     "columns": [
       {
@@ -30,26 +30,31 @@
       },
       {
         "ordinal": 5,
+        "name": "allow_auto_create",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
         "name": "last_used_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "expires_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "revoked_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "updated_at",
         "type_info": "Timestamptz"
       }
@@ -57,11 +62,7 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text",
-        "Text",
-        "Text",
-        "Uuid",
-        "Timestamptz"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -70,6 +71,7 @@
       false,
       false,
       true,
+      false,
       true,
       true,
       true,
@@ -77,5 +79,5 @@
       false
     ]
   },
-  "hash": "6a9271d8371f55fc5f95b5b4206f531f7b3846cd2f6bd20a9e21ebdf496aa845"
+  "hash": "543f0c34338209fd29ecb285bc4d2f9595ca5c69bfecc48883104a19d4a7d15c"
 }
