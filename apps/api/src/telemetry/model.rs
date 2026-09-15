@@ -168,7 +168,7 @@ impl SummaryRow {
 }
 
 /// One time bucket of telemetry, for charting.
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SeriesPoint {
     /// Start of the bucket.
     pub bucket: DateTime<Utc>,

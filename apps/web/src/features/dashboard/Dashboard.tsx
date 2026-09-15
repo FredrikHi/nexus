@@ -105,7 +105,8 @@ export function Dashboard() {
                 <div key={h.integration_id} className="flex items-start gap-3 p-3">
                   <HealthBadge status={h.status} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-neutral-300">{h.reason}</div>
+                    <div className="truncate text-sm text-neutral-100">{h.integration_name}</div>
+                    <div className="mt-0.5 text-xs text-neutral-400">{h.reason}</div>
                     <div className="mt-0.5 text-xs text-neutral-600">
                       {h.event_count} events, {formatPercent(h.error_rate)} errors, since{' '}
                       {relativeTime(h.since)}

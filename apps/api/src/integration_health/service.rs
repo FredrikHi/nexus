@@ -31,8 +31,15 @@ pub async fn evaluate(db: &PgPool, org_id: Uuid) -> Result<EvaluationResult, Api
     let mut changed = 0usize;
 
     for input in &inputs {
-        let verdict = evaluator::judge(&input.policy, &input.measurement, now);
         let before = previous.get(&input.integration_id).map(String::as_str);
+        // The last verdict is an input now, not just something to compare
+        // against: a quiet integration keeps the status it earned.
+        let verdict = evaluator::judge(
+            &input.policy,
+            &input.measurement,
+            before.and_then(HealthStatus::from_db),
+            now,
+        );
 
         repository::record(db, input, &verdict).await?;
 

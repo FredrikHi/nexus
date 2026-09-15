@@ -230,7 +230,9 @@ async fn going_quiet_does_not_resolve_an_incident(pool: PgPool) {
         1
     );
 
-    // Push every event outside the staleness window: health goes UNKNOWN.
+    // Past the measurement window, but well inside the twelve hours a verdict
+    // is trusted for. Going quiet does not launder a failure: the last thing
+    // actually observed was a broken integration, so it stays broken.
     sqlx::query!("UPDATE telemetry_events SET occurred_at = occurred_at - INTERVAL '5 hours'")
         .execute(&pool)
         .await
@@ -241,7 +243,30 @@ async fn going_quiet_does_not_resolve_an_incident(pool: PgPool) {
     let health = integration_health::health_of(&pool, DEFAULT_ORG, i)
         .await
         .expect("health");
-    assert_eq!(health, "UNKNOWN", "no recent traffic means UNKNOWN");
+    assert_eq!(
+        health, "UNHEALTHY",
+        "a quiet integration keeps the verdict it earned"
+    );
+
+    let open = service::list(&pool, DEFAULT_ORG, open_query())
+        .await
+        .expect("list");
+    assert_eq!(open.len(), 1, "the incident must stay open");
+
+    // Now past the point where the last verdict can be stood behind. The
+    // status becomes honest again, and the incident still does not close:
+    // losing sight of something is not the same as fixing it.
+    sqlx::query!("UPDATE telemetry_events SET occurred_at = occurred_at - INTERVAL '10 hours'")
+        .execute(&pool)
+        .await
+        .expect("age the events further");
+
+    pass(&pool).await;
+
+    let health = integration_health::health_of(&pool, DEFAULT_ORG, i)
+        .await
+        .expect("health");
+    assert_eq!(health, "UNKNOWN", "past the stale window, nothing is known");
 
     let open = service::list(&pool, DEFAULT_ORG, open_query())
         .await

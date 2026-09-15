@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::api_keys::AuthenticatedKey;
@@ -290,5 +290,52 @@ pub async fn series(
     )
     .await?;
 
-    Ok(rows.into_iter().map(|r| r.into_domain()).collect())
+    let measured: Vec<SeriesPoint> = rows.into_iter().map(|r| r.into_domain()).collect();
+    Ok(fill_gaps(measured, from, to, bucket_seconds))
+}
+
+/// Puts an empty bucket wherever nothing happened.
+///
+/// The query returns only buckets that contain events, and a chart plots what
+/// it is given at even spacing. A week with traffic on two days therefore
+/// renders as two adjacent columns rather than a week that was mostly quiet,
+/// which makes every window past a day look much the same. Filling the gaps
+/// makes the axis mean what it appears to mean, and makes silence visible
+/// rather than absent.
+fn fill_gaps(
+    measured: Vec<SeriesPoint>,
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+    bucket_seconds: i64,
+) -> Vec<SeriesPoint> {
+    // date_bin aligns buckets to this origin, so filled buckets must align to
+    // it too, or they would sit between the real ones instead of beside them.
+    let Some(origin) = DateTime::<Utc>::from_timestamp(946_684_800, 0) else {
+        return measured;
+    };
+
+    let by_bucket: HashMap<DateTime<Utc>, SeriesPoint> =
+        measured.into_iter().map(|p| (p.bucket, p)).collect();
+
+    // Floor the start onto a bucket boundary. div_euclid rather than plain
+    // division, so a timestamp before the origin still rounds downwards.
+    let offset = (from - origin).num_seconds().div_euclid(bucket_seconds);
+    let mut cursor = origin + Duration::seconds(offset * bucket_seconds);
+
+    let mut filled = Vec::with_capacity(by_bucket.len() + 16);
+    while cursor < to {
+        filled.push(by_bucket.get(&cursor).cloned().unwrap_or(SeriesPoint {
+            bucket: cursor,
+            total: 0,
+            success: 0,
+            failure: 0,
+            timeout: 0,
+            rejected: 0,
+            error_rate: 0.0,
+            p95_duration_ms: None,
+        }));
+        cursor += Duration::seconds(bucket_seconds);
+    }
+
+    filled
 }

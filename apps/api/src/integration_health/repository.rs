@@ -35,7 +35,7 @@ pub async fn gather(db: &PgPool, org_id: Uuid) -> Result<Vec<EvaluationInput>, A
              COALESCE(own.error_rate_unhealthy, fb.error_rate_unhealthy, 0.20) AS "error_rate_unhealthy!",
              COALESCE(own.p95_degraded_ms,      fb.p95_degraded_ms)            AS "p95_degraded_ms",
              COALESCE(own.p95_unhealthy_ms,     fb.p95_unhealthy_ms)           AS "p95_unhealthy_ms",
-             COALESCE(own.stale_after_minutes,  fb.stale_after_minutes,  60)   AS "stale_after_minutes!",
+             COALESCE(own.stale_after_minutes,  fb.stale_after_minutes,  720)  AS "stale_after_minutes!",
              count(te.id)                                                     AS "event_count!",
              count(te.id) FILTER (WHERE te.status IN ('FAILURE','TIMEOUT'))    AS "error_count!",
              percentile_cont(0.95) WITHIN GROUP (ORDER BY te.duration_ms)      AS "p95_duration_ms",
@@ -183,12 +183,14 @@ pub async fn record_transition(
 pub async fn list(db: &PgPool, org_id: Uuid) -> Result<Vec<IntegrationHealthRow>, ApiError> {
     let rows = sqlx::query_as!(
         IntegrationHealthRow,
-        r#"SELECT integration_id, organization_id, status, since, evaluated_at,
-                  window_minutes, event_count, error_count, error_rate,
-                  p95_duration_ms, last_event_at, reason
-           FROM integration_health
-           WHERE organization_id = $1
-           ORDER BY CASE status
+        r#"SELECT h.integration_id, i.name AS "integration_name!", i.slug AS "integration_slug!",
+                  h.organization_id, h.status, h.since, h.evaluated_at,
+                  h.window_minutes, h.event_count, h.error_count, h.error_rate,
+                  h.p95_duration_ms, h.last_event_at, h.reason
+           FROM integration_health h
+           JOIN integrations i ON i.id = h.integration_id
+           WHERE h.organization_id = $1
+           ORDER BY CASE h.status
                       WHEN 'UNHEALTHY' THEN 0
                       WHEN 'DEGRADED'  THEN 1
                       WHEN 'UNKNOWN'   THEN 2
@@ -210,11 +212,13 @@ pub async fn find(
 ) -> Result<Option<IntegrationHealthRow>, ApiError> {
     let row = sqlx::query_as!(
         IntegrationHealthRow,
-        r#"SELECT integration_id, organization_id, status, since, evaluated_at,
-                  window_minutes, event_count, error_count, error_rate,
-                  p95_duration_ms, last_event_at, reason
-           FROM integration_health
-           WHERE organization_id = $1 AND integration_id = $2"#,
+        r#"SELECT h.integration_id, i.name AS "integration_name!", i.slug AS "integration_slug!",
+                  h.organization_id, h.status, h.since, h.evaluated_at,
+                  h.window_minutes, h.event_count, h.error_count, h.error_rate,
+                  h.p95_duration_ms, h.last_event_at, h.reason
+           FROM integration_health h
+           JOIN integrations i ON i.id = h.integration_id
+           WHERE h.organization_id = $1 AND h.integration_id = $2"#,
         org_id,
         integration_id
     )

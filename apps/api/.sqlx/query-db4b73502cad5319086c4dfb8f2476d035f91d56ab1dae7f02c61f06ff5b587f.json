@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT integration_id, organization_id, status, since, evaluated_at,\n                  window_minutes, event_count, error_count, error_rate,\n                  p95_duration_ms, last_event_at, reason\n           FROM integration_health\n           WHERE organization_id = $1\n           ORDER BY CASE status\n                      WHEN 'UNHEALTHY' THEN 0\n                      WHEN 'DEGRADED'  THEN 1\n                      WHEN 'UNKNOWN'   THEN 2\n                      ELSE 3\n                    END,\n                    since ASC",
+  "query": "SELECT h.integration_id, i.name AS \"integration_name!\", i.slug AS \"integration_slug!\",\n                  h.organization_id, h.status, h.since, h.evaluated_at,\n                  h.window_minutes, h.event_count, h.error_count, h.error_rate,\n                  h.p95_duration_ms, h.last_event_at, h.reason\n           FROM integration_health h\n           JOIN integrations i ON i.id = h.integration_id\n           WHERE h.organization_id = $1 AND h.integration_id = $2",
   "describe": {
     "columns": [
       {
@@ -10,66 +10,79 @@
       },
       {
         "ordinal": 1,
-        "name": "organization_id",
-        "type_info": "Uuid"
+        "name": "integration_name!",
+        "type_info": "Text"
       },
       {
         "ordinal": 2,
-        "name": "status",
+        "name": "integration_slug!",
         "type_info": "Text"
       },
       {
         "ordinal": 3,
+        "name": "organization_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
         "name": "since",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 4,
+        "ordinal": 6,
         "name": "evaluated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 5,
+        "ordinal": 7,
         "name": "window_minutes",
         "type_info": "Int4"
       },
       {
-        "ordinal": 6,
+        "ordinal": 8,
         "name": "event_count",
         "type_info": "Int8"
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "error_count",
         "type_info": "Int8"
       },
       {
-        "ordinal": 8,
+        "ordinal": 10,
         "name": "error_rate",
         "type_info": "Float8"
       },
       {
-        "ordinal": 9,
+        "ordinal": 11,
         "name": "p95_duration_ms",
         "type_info": "Float8"
       },
       {
-        "ordinal": 10,
+        "ordinal": 12,
         "name": "last_event_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 11,
+        "ordinal": 13,
         "name": "reason",
         "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Uuid"
       ]
     },
     "nullable": [
+      false,
+      false,
       false,
       false,
       false,
@@ -84,5 +97,5 @@
       false
     ]
   },
-  "hash": "7decfe4d42f6d8b94d0ecc53df1abe33835e41173420847c69d84162e7f69115"
+  "hash": "db4b73502cad5319086c4dfb8f2476d035f91d56ab1dae7f02c61f06ff5b587f"
 }

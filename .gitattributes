@@ -1,0 +1,11 @@
+# Line endings are not cosmetic in two places here, so they are pinned.
+#
+# SQLx checksums each migration file byte for byte. A migration applied from a
+# CRLF checkout and then deployed from an LF one hashes differently, and the
+# API refuses to start with "migration N was previously applied but has been
+# modified". Nobody edited anything; git converted it.
+*.sql text eol=lf
+
+# A shell script with CRLF fails inside a Linux container with a message that
+# names the wrong thing entirely.
+*.sh text eol=lf

@@ -108,6 +108,8 @@ export type HealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'UNKNOWN'
 
 export interface IntegrationHealth {
   integration_id: string
+  integration_name: string
+  integration_slug: string
   status: HealthStatus
   since: string
   evaluated_at: string
