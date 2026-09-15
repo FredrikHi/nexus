@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://fredrikhillbert.github.io/nexus/">fredrikhillbert.github.io/nexus</a>
+  <a href="nexus-6s2.pages.dev">nexus-6s2.pages.dev</a>
 </p>
 
 <p align="center">
