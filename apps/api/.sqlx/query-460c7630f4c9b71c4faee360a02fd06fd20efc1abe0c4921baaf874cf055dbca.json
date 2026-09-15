@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE telemetry_events SET occurred_at = occurred_at - INTERVAL '10 hours'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "460c7630f4c9b71c4faee360a02fd06fd20efc1abe0c4921baaf874cf055dbca"
+}

@@ -82,6 +82,10 @@ pub struct Verdict {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct IntegrationHealth {
     pub integration_id: Uuid,
+    /// Carried alongside the id so a list can name what it is talking about
+    /// without every caller fetching the integrations separately.
+    pub integration_name: String,
+    pub integration_slug: String,
     pub organization_id: Uuid,
     pub status: HealthStatus,
     /// When the CURRENT status began, not when it was last evaluated.
@@ -100,6 +104,8 @@ pub struct IntegrationHealth {
 #[derive(Debug)]
 pub struct IntegrationHealthRow {
     pub integration_id: Uuid,
+    pub integration_name: String,
+    pub integration_slug: String,
     pub organization_id: Uuid,
     pub status: String,
     pub since: DateTime<Utc>,
@@ -121,6 +127,8 @@ impl IntegrationHealthRow {
 
         Ok(IntegrationHealth {
             integration_id: self.integration_id,
+            integration_name: self.integration_name,
+            integration_slug: self.integration_slug,
             organization_id: self.organization_id,
             status,
             since: self.since,

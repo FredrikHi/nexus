@@ -18,11 +18,17 @@ use super::model::{HealthStatus, Measurement, ResolvedPolicy, Verdict};
 /// Order matters. Staleness is checked first because an integration with no
 /// recent traffic cannot be judged on rates at all, and the unhealthy
 /// thresholds are checked before the degraded ones so the worse verdict wins.
-pub fn judge(policy: &ResolvedPolicy, m: &Measurement, now: DateTime<Utc>) -> Verdict {
+pub fn judge(
+    policy: &ResolvedPolicy,
+    m: &Measurement,
+    previous: Option<HealthStatus>,
+    now: DateTime<Utc>,
+) -> Verdict {
     let stale_after = Duration::minutes(policy.stale_after_minutes as i64);
 
-    // No traffic at all, or none recently. Silence is not failure.
-    match m.last_event_at {
+    let last_event_at = match m.last_event_at {
+        // Never seen. This is the only honest UNKNOWN: there is nothing to
+        // carry forward and nothing to judge.
         None => {
             return Verdict {
                 status: HealthStatus::Unknown,
@@ -33,23 +39,59 @@ pub fn judge(policy: &ResolvedPolicy, m: &Measurement, now: DateTime<Utc>) -> Ve
             return Verdict {
                 status: HealthStatus::Unknown,
                 reason: format!(
-                    "no telemetry in the last {} minutes; last event was at {}",
-                    policy.stale_after_minutes,
+                    "no telemetry for over {} hours; last event was at {}",
+                    policy.stale_after_minutes / 60,
                     last.to_rfc3339()
                 ),
             }
         }
-        Some(_) => {}
+        Some(last) => last,
+    };
+
+    // Quiet, but not quiet for long enough to doubt. An integration called a
+    // few times a day is idle most of the time, and idle is not unknown: the
+    // last thing we actually observed still stands.
+    if m.event_count == 0 {
+        return match previous {
+            Some(status) if status != HealthStatus::Unknown => Verdict {
+                status,
+                reason: format!(
+                    "no calls in the last {} minutes; still {} from the last one, at {}",
+                    policy.window_minutes,
+                    status.as_str().to_lowercase(),
+                    last_event_at.to_rfc3339()
+                ),
+            },
+            _ => Verdict {
+                status: HealthStatus::Unknown,
+                reason: format!(
+                    "no calls in the last {} minutes and no earlier verdict to stand on",
+                    policy.window_minutes
+                ),
+            },
+        };
     }
 
-    // Too little traffic to draw a conclusion. Without this, one failure out of
-    // one call reads as a 100% error rate and declares an outage.
+    // Too few calls to trust a rate: one failure out of one would read as a
+    // 100% error rate. But a handful of calls that all worked is evidence of
+    // working, and a handful with a failure in them is worth showing rather
+    // than hiding behind UNKNOWN.
     if m.event_count < policy.min_events as i64 {
+        if m.error_count > 0 {
+            return Verdict {
+                status: HealthStatus::Degraded,
+                reason: format!(
+                    "{} of {} calls failed in the last {} minutes; too few to judge a rate",
+                    m.error_count, m.event_count, policy.window_minutes
+                ),
+            };
+        }
+
         return Verdict {
-            status: HealthStatus::Unknown,
+            status: HealthStatus::Healthy,
             reason: format!(
-                "only {} events in the last {} minutes; {} are needed to judge",
-                m.event_count, policy.window_minutes, policy.min_events
+                "{} calls in the last {} minutes, none failed",
+                m.event_count, policy.window_minutes
             ),
         };
     }
@@ -125,7 +167,9 @@ mod tests {
             error_rate_unhealthy: 0.20,
             p95_degraded_ms: Some(1_000),
             p95_unhealthy_ms: Some(5_000),
-            stale_after_minutes: 60,
+            // Twelve hours, matching the shipped default: a verdict is
+            // meant to outlive a quiet afternoon.
+            stale_after_minutes: 720,
         }
     }
 
@@ -139,7 +183,7 @@ mod tests {
     }
 
     fn status_of(m: Measurement) -> HealthStatus {
-        judge(&policy(), &m, Utc::now()).status
+        judge(&policy(), &m, None, Utc::now()).status
     }
 
     #[test]
@@ -183,24 +227,36 @@ mod tests {
         let mut p = policy();
         p.p95_degraded_ms = None;
         p.p95_unhealthy_ms = None;
-        let verdict = judge(&p, &measured(100, 0, Some(60_000.0)), Utc::now());
+        let verdict = judge(&p, &measured(100, 0, Some(60_000.0)), None, Utc::now());
         assert_eq!(verdict.status, HealthStatus::Healthy);
     }
 
     #[test]
-    fn too_few_events_is_unknown_not_unhealthy() {
-        // One failure out of one call is a 100% error rate, and means nothing.
-        let verdict = judge(&policy(), &measured(1, 1, None), Utc::now());
-        assert_eq!(verdict.status, HealthStatus::Unknown);
+    fn a_failure_in_a_small_sample_degrades_rather_than_condemns() {
+        // One failure out of one call is a 100% error rate, which means
+        // nothing as a rate. It is still worth seeing, so it degrades rather
+        // than being hidden behind UNKNOWN or treated as an outage.
+        let verdict = judge(&policy(), &measured(1, 1, None), None, Utc::now());
+        assert_eq!(verdict.status, HealthStatus::Degraded);
         assert!(
-            verdict.reason.contains("needed to judge"),
+            verdict.reason.contains("too few to judge a rate"),
             "{}",
             verdict.reason
         );
     }
 
     #[test]
-    fn silence_is_unknown_not_unhealthy() {
+    fn a_small_clean_sample_is_healthy() {
+        // Three calls, none failed. That is evidence of working, and the old
+        // rule called it UNKNOWN.
+        let verdict = judge(&policy(), &measured(3, 0, None), None, Utc::now());
+        assert_eq!(verdict.status, HealthStatus::Healthy);
+    }
+
+    #[test]
+    fn a_quiet_integration_keeps_the_verdict_it_earned() {
+        // Three hours without a call, having been healthy. An integration used
+        // a few times a day is idle most of the time, and idle is not unknown.
         let now = Utc::now();
         let m = Measurement {
             event_count: 0,
@@ -208,7 +264,57 @@ mod tests {
             p95_duration_ms: None,
             last_event_at: Some(now - Duration::hours(3)),
         };
-        assert_eq!(judge(&policy(), &m, now).status, HealthStatus::Unknown);
+        let verdict = judge(&policy(), &m, Some(HealthStatus::Healthy), now);
+        assert_eq!(verdict.status, HealthStatus::Healthy);
+        assert!(
+            verdict.reason.contains("still healthy"),
+            "{}",
+            verdict.reason
+        );
+    }
+
+    #[test]
+    fn a_quiet_integration_also_keeps_a_bad_verdict() {
+        // Failing and then going quiet does not launder the failure.
+        let now = Utc::now();
+        let m = Measurement {
+            event_count: 0,
+            error_count: 0,
+            p95_duration_ms: None,
+            last_event_at: Some(now - Duration::hours(3)),
+        };
+        let verdict = judge(&policy(), &m, Some(HealthStatus::Unhealthy), now);
+        assert_eq!(verdict.status, HealthStatus::Unhealthy);
+    }
+
+    #[test]
+    fn silence_with_nothing_to_carry_forward_is_unknown() {
+        let now = Utc::now();
+        let m = Measurement {
+            event_count: 0,
+            error_count: 0,
+            p95_duration_ms: None,
+            last_event_at: Some(now - Duration::hours(3)),
+        };
+        assert_eq!(
+            judge(&policy(), &m, None, now).status,
+            HealthStatus::Unknown
+        );
+    }
+
+    #[test]
+    fn a_verdict_does_not_outlive_the_stale_window() {
+        // Thirteen hours is past the twelve the policy allows, so even a
+        // healthy verdict stops standing behind it.
+        let now = Utc::now();
+        let m = Measurement {
+            event_count: 0,
+            error_count: 0,
+            p95_duration_ms: None,
+            last_event_at: Some(now - Duration::hours(13)),
+        };
+        let verdict = judge(&policy(), &m, Some(HealthStatus::Healthy), now);
+        assert_eq!(verdict.status, HealthStatus::Unknown);
     }
 
     #[test]
@@ -219,7 +325,7 @@ mod tests {
             p95_duration_ms: None,
             last_event_at: None,
         };
-        let verdict = judge(&policy(), &m, Utc::now());
+        let verdict = judge(&policy(), &m, None, Utc::now());
         assert_eq!(verdict.status, HealthStatus::Unknown);
         assert!(
             verdict.reason.contains("ever been recorded"),
@@ -236,8 +342,11 @@ mod tests {
             event_count: 100,
             error_count: 100,
             p95_duration_ms: None,
-            last_event_at: Some(now - Duration::hours(6)),
+            last_event_at: Some(now - Duration::hours(14)),
         };
-        assert_eq!(judge(&policy(), &m, now).status, HealthStatus::Unknown);
+        assert_eq!(
+            judge(&policy(), &m, Some(HealthStatus::Unhealthy), now).status,
+            HealthStatus::Unknown
+        );
     }
 }
