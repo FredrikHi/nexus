@@ -1,0 +1,87 @@
+# Publishes the .NET client to nuget.org, so adopting it is a PackageReference
+# rather than a submodule or a copied folder.
+#
+# Called by the release workflow once a version has been cut, and tagged with
+# that same version: a client and the server it was built against then share a
+# number, which is the question you actually have when a payload stops being
+# accepted. Runnable by hand to republish a version that failed to push.
+#
+# One-time setup: create an API key on nuget.org scoped to Nexus.Observability
+# (Glob pattern `Nexus.*` so the first push, before the id exists, is allowed)
+# and add it as the repository secret NUGET_API_KEY. Without the secret the
+# package is still built and attached to the run; only the push is skipped, so
+# a release never fails over a missing key.
+name: Publish NuGet
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Semver to publish, without a leading v.
+        required: true
+        type: string
+    secrets:
+      NUGET_API_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver to publish, without a leading v.
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/dotnet
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # net8.0 is one of the two targets, and the SDK that builds it has to be
+      # present even though net10.0 could compile both.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - run: dotnet build Nexus.Observability/Nexus.Observability.csproj -c Release -p:Version=${{ inputs.version }}
+
+      - run: dotnet pack Nexus.Observability/Nexus.Observability.csproj -c Release --no-build -p:Version=${{ inputs.version }} -o artifacts
+
+      # Kept regardless of whether the push happens, so a missing or rejected
+      # key still leaves you something to publish by hand.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-${{ inputs.version }}
+          path: clients/dotnet/artifacts/*
+
+      - id: key
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::warning::NUGET_API_KEY is not set, so nothing was pushed. The package is attached to this run as an artifact."
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --skip-duplicate because a hand-run of a version already on nuget.org
+      # should be a no-op rather than a failure. The symbols package is pushed
+      # separately: the glob for .nupkg does not match it.
+      - if: steps.key.outputs.push == 'true'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+          dotnet nuget push "artifacts/*.snupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

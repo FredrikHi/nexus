@@ -2,6 +2,7 @@
   "name": "@integration-observability/node",
   "version": "0.1.0",
   "description": "Send telemetry to the Integration Observability Platform. Zero dependencies.",
+  "license": "MIT",
   "main": "dist/observability.js",
   "types": "dist/observability.d.ts",
   "files": ["dist", "src"],

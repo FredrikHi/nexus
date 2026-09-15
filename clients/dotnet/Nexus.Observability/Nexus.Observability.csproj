@@ -10,15 +10,45 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 
     <PackageId>Nexus.Observability</PackageId>
+    <!-- The release workflow overrides this with the version it just cut, so a
+         package and the server images it was built against share a number.
+         The default is only what a local `dotnet pack` produces. -->
     <Version>0.1.0</Version>
     <Description>Send telemetry to Nexus. Reports the outcome and duration of outbound calls without being able to break or slow the application it watches.</Description>
-    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <Authors>Fredrik Hillbert</Authors>
+    <!-- MIT, not the AGPL the server carries. The Affero clause exists to stop
+         someone running Nexus as a service without sharing their changes; it
+         has no business reaching into the applications being watched, and a
+         copyleft SDK is a reason not to adopt one. -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/FredrikHillbert/nexus</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/FredrikHillbert/nexus</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>observability;telemetry;monitoring;integrations;httpclient;tracing;nexus</PackageTags>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Source Link ships with the SDK, so a debugger can step into this
+         package's code without the package carrying the sources itself.
+         Symbols go out as a .snupkg alongside. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     <!-- Warnings are errors, but not "undocumented public member": the members
          worth explaining carry comments, and documenting StatusCode as "the
          status code" is noise in IntelliSense rather than help. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The client README is what nuget.org shows on the package page, so it
+         is the same file a reader finds in the repository rather than a second
+         description that drifts from it. -->
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+    <None Include="../LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Only the DI and HttpClientFactory abstractions, so the library can be
