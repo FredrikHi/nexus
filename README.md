@@ -180,9 +180,13 @@ keeps its slug, so the code goes on working. Turn auto-create off once the
 picture is complete, and a misspelled slug becomes a refusal again rather than
 a new row.
 
-The Node client is one file with no dependencies: see
-[clients/node](clients/node). It never throws, never blocks a request, and
-drops telemetry rather than growing without bound.
+Two clients, both of which never throw, never block a request, and drop
+telemetry rather than growing without bound:
+
+| | |
+| --- | --- |
+| [Node](clients/node) | One file, no dependencies. |
+| [.NET](clients/dotnet) | `dotnet add package Nexus.Observability`. One line per `HttpClient` reports everything it does. |
 
 Prefer to describe the landscape deliberately and review it in a pull request?
 Apply a file instead, and keep auto-create off:
@@ -231,7 +235,8 @@ safe.
 
 Work happens on a branch and lands through a pull request. Five checks have to
 be green: the Rust suite with formatting and clippy as errors, the web build
-and lint, and a typecheck of the auth service and the Node client.
+and lint, a typecheck of the auth service and the Node client, and a build and
+pack of the .NET client.
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org),
 because the version is computed from them rather than chosen by hand:
@@ -248,15 +253,21 @@ merge uses the title as the commit message. That title is what decides the
 next version.
 
 Merging to the default branch tags the release, writes the notes from the
-commits, and publishes images tagged with the new version alongside `latest`.
-A merge that releases nothing publishes nothing, so `latest` always points at
-the most recent release rather than the most recent commit.
+commits, and publishes images tagged with the new version alongside `latest`,
+plus `Nexus.Observability` on nuget.org carrying the same version. A merge that
+releases nothing publishes nothing, so `latest` always points at the most
+recent release rather than the most recent commit.
 
 ## License
 
-[GNU AGPL v3](LICENSE).
+The platform is [GNU AGPL v3](LICENSE). You may run, modify and redistribute it
+freely. The one obligation that matters: if you offer it to others over a
+network as a service, you have to offer them the source of your modified
+version too. That is the whole point of the Affero clause, and it is why this
+licence rather than MIT.
 
-You may run, modify and redistribute this freely. The one obligation that
-matters: if you offer it to others over a network as a service, you have to
-offer them the source of your modified version too. That is the whole point of
-the Affero clause, and it is why this licence rather than MIT.
+The clients in [clients/](clients) are [MIT](clients/dotnet/LICENSE). They are
+linked into the applications being watched, and copyleft reaching in there
+would mean the price of recording how long a call took is publishing the
+service that made it. The Affero clause is aimed at whoever runs Nexus, not at
+whoever is measured by it.

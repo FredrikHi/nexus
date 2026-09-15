@@ -22,8 +22,8 @@ jobs:
       pull-requests: write
 
     outputs:
-      published: ${{ steps.semantic.outputs.new_release_published }}
-      version: ${{ steps.semantic.outputs.new_release_version }}
+      published: ${{ steps.released.outputs.published }}
+      version: ${{ steps.released.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -32,10 +32,48 @@ jobs:
           # since the last tag.
           fetch-depth: 0
 
+      - id: before
+        name: Record the newest tag before releasing
+        run: |
+          before=$(git ls-remote --tags --refs origin 'v*' | sed 's#.*refs/tags/##' | sort -V | tail -1)
+          echo "tag=$before" >> "$GITHUB_OUTPUT"
+          echo "newest tag before this run: ${before:-none}"
+
+      # Allowed to fail, because a failure here does not reliably mean nothing
+      # was released. The API client inside semantic-release retries a request
+      # it believes was lost, and a retried create-release comes back as 422
+      # already_exists even though the first attempt worked. The step then
+      # reports failure over a release that exists, and everything downstream
+      # is skipped for no reason.
       - id: semantic
+        continue-on-error: true
         uses: cycjimmy/semantic-release-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # So the tag on the remote decides whether a release happened, rather
+      # than the exit status of the step that may or may not have created it.
+      - id: released
+        if: always()
+        name: Decide from the tag, not the exit status
+        run: |
+          after=$(git ls-remote --tags --refs origin 'v*' | sed 's#.*refs/tags/##' | sort -V | tail -1)
+          if [ -n "$after" ] && [ "$after" != "${{ steps.before.outputs.tag }}" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "version=${after#v}" >> "$GITHUB_OUTPUT"
+            echo "released $after"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "no new tag appeared; nothing to publish"
+          fi
+
+      # A real failure still fails the run: semantic-release fell over and
+      # produced no release at all.
+      - name: Fail when semantic-release failed without releasing
+        if: steps.semantic.outcome == 'failure' && steps.released.outputs.published != 'true'
+        run: |
+          echo "semantic-release failed and no new tag appeared"
+          exit 1
 
   # Only when a version was actually cut. A merge of a `chore:` or `docs:`
   # commit releases nothing, and republishing the same images would be noise.
@@ -48,3 +86,17 @@ jobs:
     uses: ./.github/workflows/publish.yml
     with:
       version: ${{ needs.release.outputs.version }}
+
+  # The .NET client carries the release version too, so `Nexus.Observability
+  # 1.2.0` is the client that goes with the 1.2.0 images. Independent of the
+  # images: a registry being down should not hold up the other.
+  publish-nuget:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/publish-nuget.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
