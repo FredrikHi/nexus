@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0 as well as net10.0: plenty of services are still on the
+         previous LTS, and nothing here needs anything newer. -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <PackageId>Nexus.Observability</PackageId>
+    <Version>0.1.0</Version>
+    <Description>Send telemetry to Nexus. Reports the outcome and duration of outbound calls without being able to break or slow the application it watches.</Description>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Warnings are errors, but not "undocumented public member": the members
+         worth explaining carry comments, and documenting StatusCode as "the
+         status code" is noise in IntelliSense rather than help. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only the DI and HttpClientFactory abstractions, so the library can be
+         used from a plain console app without pulling in a host. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+  </ItemGroup>
+
+</Project>
