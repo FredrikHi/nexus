@@ -7,8 +7,13 @@ Targets `net8.0` and `net10.0`. Two dependencies, both Microsoft abstractions.
 
 ## Get started
 
-Create an ingest key under **Administration, API keys** with *Create unknown
-integrations* ticked, then:
+```bash
+dotnet add package Nexus.Observability
+```
+
+Its version matches the Nexus release it was built against, so `1.2.0` is the
+client for a `1.2.0` server. Create an ingest key under **Administration, API
+keys** with *Create unknown integrations* ticked, then:
 
 ```bash
 NEXUS_URL=https://nexus.example.com
@@ -123,11 +128,36 @@ exception.Data["StatusCode"] = 429;
 builder.Services.AddNexus(options =>
 {
     options.FlushInterval = TimeSpan.FromSeconds(5);
-    options.OnError = e => logger.LogWarning(e, "telemetry flush failed");
 });
 ```
+
+There is an overload that hands you the container, for settings that live in
+`IConfiguration` rather than the environment, and for an `OnError` that logs
+through the application's logger rather than nowhere:
+
+```csharp
+builder.Services.AddNexus((provider, options) =>
+{
+    options.Url = builder.Configuration["Nexus:Url"] ?? options.Url;
+    options.ApiKey = builder.Configuration["Nexus:ApiKey"] ?? options.ApiKey;
+
+    var logger = provider.GetRequiredService<ILogger<NexusClient>>();
+    options.OnError = e => logger.LogWarning(e, "Nexus flush failed");
+});
+```
+
+Worth wiring up: a wrong URL or a revoked key is otherwise silent forever,
+which is a poor failure mode for the thing that tells you when something is
+failing.
 
 ## Shutting down
 
 `NexusClient` is `IAsyncDisposable` and drains what is queued on disposal, so a
 host that disposes its services loses nothing on a clean stop.
+
+## Licence
+
+[MIT](LICENSE), unlike the AGPL the server carries. The Affero clause is there
+to stop someone running Nexus as a service without sharing their changes. It
+has no business reaching into the applications being watched, and nobody
+should have to think about a licence to record how long a call took.

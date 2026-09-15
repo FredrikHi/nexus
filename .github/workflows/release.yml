@@ -48,3 +48,17 @@ jobs:
     uses: ./.github/workflows/publish.yml
     with:
       version: ${{ needs.release.outputs.version }}
+
+  # The .NET client carries the release version too, so `Nexus.Observability
+  # 1.2.0` is the client that goes with the 1.2.0 images. Independent of the
+  # images: a registry being down should not hold up the other.
+  publish-nuget:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/publish-nuget.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

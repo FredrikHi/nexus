@@ -100,3 +100,22 @@ jobs:
           cache-dependency-path: clients/node/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+
+  client-dotnet:
+    name: .NET client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      # Warnings are errors in the csproj, so a build is the check. Packing as
+      # well, because the things that break a release are packaging ones: a
+      # README that moved, a licence expression nuget.org will not take.
+      - run: dotnet build Nexus.Observability/Nexus.Observability.csproj -c Release
+      - run: dotnet pack Nexus.Observability/Nexus.Observability.csproj -c Release --no-build -o artifacts
