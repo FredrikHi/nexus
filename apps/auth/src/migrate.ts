@@ -14,7 +14,7 @@
  */
 import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
-import { auth, authDatabaseUrl, authSchema } from "./auth.js";
+import { auth, authDatabaseUrl, authPool, authSchema } from "./auth.js";
 
 // An arbitrary but fixed key. Two instances starting at once must not both try
 // to create the same tables, so the loser waits here and then finds nothing to
@@ -53,13 +53,15 @@ async function main(): Promise<void> {
     await lock.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_KEY]);
     lock.release();
     await pool.end();
+    // getMigrations talked to the database through the library's own pool.
+    await authPool.end();
   }
 }
 
 main()
   .then(() => {
-    // auth.ts opened its own connection pool at import time and nothing closes
-    // it, so the event loop would otherwise keep this process alive forever.
+    // Both pools are closed, but a library timer or socket we do not own
+    // could still hold the event loop open; a migration must never hang a start.
     process.exit(0);
   })
   .catch((error: unknown) => {

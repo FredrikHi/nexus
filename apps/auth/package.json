@@ -7,6 +7,7 @@
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/index.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/index.ts",
     "migrate": "node --env-file-if-exists=.env --import tsx src/migrate.ts",
+    "bundle": "esbuild src/index.ts src/migrate.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs --sourcemap --legal-comments=external --log-level=warning",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,6 +18,7 @@
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@types/pg": "^8.11.10",
+    "esbuild": "0.28.2",
     "typescript": "^5.7.2"
   }
 }

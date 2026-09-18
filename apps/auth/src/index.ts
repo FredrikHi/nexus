@@ -3,6 +3,10 @@ import { toNodeHandler } from "better-auth/node";
 import { auth, appUrl, trustedOrigins } from "./auth.js";
 
 const port = Number(process.env.PORT ?? 3010);
+// Unset means every interface, which a container needs to be reachable from
+// its network. nexus.exe sets 127.0.0.1: on a Windows host the service must be
+// reachable through the front door only.
+const host = process.env.HOST || undefined;
 const handler = toNodeHandler(auth);
 
 const server = createServer((req, res) => {
@@ -23,8 +27,8 @@ const server = createServer((req, res) => {
   res.end(JSON.stringify({ error: { code: "NOT_FOUND", message: "no such route" } }));
 });
 
-server.listen(port, () => {
-  console.log(`auth service listening on http://0.0.0.0:${port}`);
+server.listen(port, host, () => {
+  console.log(`auth service listening on http://${host ?? "0.0.0.0"}:${port}`);
   // Printed because getting APP_URL wrong is the most likely first-run
   // mistake, and the 403 it causes does not say what was expected.
   console.log(`  app url:         ${appUrl}`);

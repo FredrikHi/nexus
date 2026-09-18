@@ -76,16 +76,23 @@ export const trustedOrigins = [
 const googleId = optional("GOOGLE_CLIENT_ID");
 const googleSecret = optional("GOOGLE_CLIENT_SECRET");
 
+/**
+ * Exported so a short-lived process, the migration, can close it when done.
+ * Left open, its connections are cut when the process exits and Postgres logs
+ * each one as "forcibly closed" on every start.
+ */
+export const authPool = new Pool({
+  connectionString: authDatabaseUrl,
+  // Scopes every statement to the schema above, including the tables the
+  // migrator creates. pg_catalog is always searched implicitly, so the
+  // built-ins still resolve.
+  options: `-c search_path=${authSchema}`,
+});
+
 export const auth = betterAuth({
   // The Rust API never reads these tables: it trusts signed tokens instead,
   // which is what keeps identity swappable.
-  database: new Pool({
-    connectionString: authDatabaseUrl,
-    // Scopes every statement to the schema above, including the tables the
-    // migrator creates. pg_catalog is always searched implicitly, so the
-    // built-ins still resolve.
-    options: `-c search_path=${authSchema}`,
-  }),
+  database: authPool,
 
   baseURL,
   secret: required("AUTH_SECRET"),

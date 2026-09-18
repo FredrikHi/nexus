@@ -52,6 +52,116 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
+  nexus:
+    name: Nexus host (Rust, Windows)
+    # Windows, not Ubuntu: this binary exists to run Nexus on Windows Server,
+    # so that is where a path, a socket or a process quirk has to show up.
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/nexus
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/nexus
+
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  service:
+    name: Windows service (install, use, stop, uninstall)
+    # The one place the service is exercised for real: installing it needs an
+    # administrator, which GitHub's Windows runners are, and running it as its
+    # virtual account is the only way to find a permission it lacks.
+    needs: nexus
+    runs-on: windows-latest
+    env:
+      CI_EMAIL: ci@example.com
+      CI_PASSWORD: ci-password-not-a-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            apps/nexus
+            apps/api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Assemble a release layout
+        shell: pwsh
+        run: ./apps/nexus/scripts/assemble.ps1 -Destination C:\Nexus
+
+      - name: Install and start the service
+        shell: pwsh
+        run: C:\Nexus\nexus.exe install --url http://localhost:5173
+
+      - name: Sign up and call the API through the service
+        shell: pwsh
+        run: |
+          $base = "http://localhost:5173"
+          $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          $body = @{ name = "CI"; email = $env:CI_EMAIL; password = $env:CI_PASSWORD } | ConvertTo-Json
+          Invoke-RestMethod -Method Post -Uri "$base/api/auth/sign-up/email" -Headers @{ Origin = $base } `
+            -ContentType "application/json" -Body $body -WebSession $session | Out-Null
+          $token = (Invoke-RestMethod -Uri "$base/api/auth/token" -Headers @{ Origin = $base } -WebSession $session).token
+          $me = Invoke-RestMethod -Uri "$base/api/v1/me" -Headers @{ Authorization = "Bearer $token" }
+          if ($me.email -ne $env:CI_EMAIL) { throw "unexpected /api/v1/me: $($me | ConvertTo-Json)" }
+
+      - name: Settings are readable by the service and administrators only
+        shell: pwsh
+        run: |
+          $sids = (Get-Acl C:\ProgramData\Nexus\nexus.env).Access |
+            ForEach-Object { $_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value }
+          # Users, and Authenticated Users.
+          foreach ($forbidden in "S-1-5-32-545", "S-1-5-11") {
+            if ($sids -contains $forbidden) { throw "nexus.env is readable by $forbidden ($($sids -join ', '))" }
+          }
+
+      - name: Stop cleanly
+        shell: pwsh
+        run: |
+          Stop-Service Nexus
+          # PostgreSQL deletes its lock file only when it shuts down properly.
+          if (Test-Path C:\ProgramData\Nexus\postgres\postmaster.pid) { throw "PostgreSQL was killed, not stopped" }
+
+      - name: Start again, and the account is still there
+        shell: pwsh
+        run: |
+          Start-Service Nexus
+          $base = "http://localhost:5173"
+          $deadline = (Get-Date).AddMinutes(3)
+          while ($true) {
+            try { if ((Invoke-WebRequest -UseBasicParsing "$base/api/auth/jwks").StatusCode -eq 200) { break } } catch { }
+            if ((Get-Date) -gt $deadline) { throw "Nexus did not come back within three minutes" }
+            Start-Sleep -Seconds 2
+          }
+          $body = @{ email = $env:CI_EMAIL; password = $env:CI_PASSWORD } | ConvertTo-Json
+          Invoke-RestMethod -Method Post -Uri "$base/api/auth/sign-in/email" -Headers @{ Origin = $base } `
+            -ContentType "application/json" -Body $body | Out-Null
+
+      - name: Uninstall keeps the data
+        shell: pwsh
+        run: |
+          C:\Nexus\nexus.exe uninstall
+          if (Get-Service Nexus -ErrorAction SilentlyContinue) { throw "the service is still registered" }
+          if (-not (Test-Path C:\ProgramData\Nexus\postgres\PG_VERSION)) { throw "uninstall removed the database" }
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-service-logs
+          path: C:\ProgramData\Nexus\logs
+          if-no-files-found: ignore
+
   auth:
     name: Auth (TypeScript)
     runs-on: ubuntu-latest
@@ -67,6 +177,25 @@ jobs:
           cache-dependency-path: apps/auth/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+
+      # nexus.exe runs these bundles on Windows, where there is no npm install.
+      # Run from a folder with no node_modules anywhere above it, so a module
+      # the bundle failed to include cannot be found on disk instead. Without
+      # a database the service stops at its own config check, which is only
+      # reachable once every import has loaded.
+      - name: Bundle loads without node_modules
+        run: |
+          npm run bundle
+          isolated="$(mktemp -d)"
+          cp dist/*.cjs dist/*.map "$isolated"
+          for bundle in index.cjs migrate.cjs; do
+            output="$(cd "$isolated" && node --enable-source-maps "$bundle" 2>&1 || true)"
+            if ! grep -q "DATABASE_URL must be set" <<<"$output"; then
+              echo "$bundle did not load cleanly:"
+              echo "$output"
+              exit 1
+            fi
+          done
 
   web:
     name: Web (React)

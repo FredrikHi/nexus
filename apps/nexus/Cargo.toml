@@ -1,0 +1,42 @@
+[package]
+name = "nexus"
+version = "0.1.0"
+edition = "2021"
+description = "Runs Nexus without Docker: one process that serves the web app and fronts the API and auth services."
+license = "AGPL-3.0-or-later"
+publish = false
+
+# A crate of its own rather than a second binary inside apps/api, and no Cargo
+# workspace joining the two: the API's Docker build uses apps/api as its whole
+# context and expects its own Cargo.lock there. A workspace would move the lock
+# file to the repository root and break that build for no gain to it.
+
+[dependencies]
+anyhow = "1"
+axum = "0.8"
+clap = { version = "4.6", features = ["derive"] }
+# The config file is KEY=VALUE lines under the same names as the environment
+# variables, the format the API already reads its .env with.
+dotenvy = "0.15"
+hex = "0.4"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+# The same generator the API mints its tokens with, for the database password.
+rand = "0.10.2"
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+tower-http = { version = "0.6", features = ["fs", "compression-gzip", "trace"] }
+tracing = "0.1"
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Ties child processes to this one's lifetime, so they cannot outlive a crash.
+[target.'cfg(windows)'.dependencies]
+win32job = "2"
+windows-service = "0.8"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
