@@ -23,6 +23,8 @@ A single place to see the systems you run, the integrations between them, and
 what is actually happening across them: which calls are failing, how slowly,
 and since when.
 
+![The dashboard: health counts, traffic and error rate over 24 hours, open incidents](docs/screenshots/dashboard.png)
+
 ## Why?
 
 Because the interesting failures happen between services, not inside one.
@@ -56,6 +58,23 @@ catalogue of supported services.
   isolation enforced in every query.
 - **Ingest keys pinned to an environment,** so a staging agent cannot write
   events claiming to be production.
+
+## What it looks like
+
+Every system, the components inside it, and the integrations between them. Edge
+colour is current health, so a bad dependency is visible without reading a
+single number.
+
+![The flow graph: systems and components as nodes, integrations as health-coloured edges](docs/screenshots/flow.png)
+
+Each integration carries its own verdict and the evidence behind it.
+
+![The integrations list, each with a health badge and the reason for it](docs/screenshots/integrations.png)
+
+Incidents open and close themselves from that health, so an outage has a start,
+an end, and a reason you did not have to write down.
+
+![Three open incidents, each naming the error rate that opened it](docs/screenshots/incidents.png)
 
 ## Self-hosting
 
