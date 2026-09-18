@@ -1,5 +1,7 @@
 # Rust
 /apps/api/target
+/apps/nexus/target
+/apps/nexus/pgsql
 # Node
 /apps/web/node_modules
 /apps/web/dist
