@@ -100,3 +100,31 @@ jobs:
       version: ${{ needs.release.outputs.version }}
     secrets:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+
+  # The Windows download: the same layout CI installs and the README describes,
+  # zipped and attached to the release, so self-hosting on Windows Server does
+  # not mean installing Rust and building it yourself.
+  publish-windows:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - shell: pwsh
+        run: ./apps/nexus/scripts/assemble.ps1 -Destination C:\Nexus
+
+      - shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          $zip = "nexus-windows-x64-$env:VERSION.zip"
+          Compress-Archive -Path C:\Nexus -DestinationPath $zip
+          gh release upload "v$env:VERSION" $zip --clobber
