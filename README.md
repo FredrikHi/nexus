@@ -150,24 +150,35 @@ the only thing the server needs installed; everything else travels in the
 folder. Use this when the machine you have is a Windows server and a Linux VM
 or Docker Desktop is not on the table.
 
-There is no published Windows download yet, so the folder is assembled once on
-a machine that has Rust and Node, and copied to the server:
+Install Node.js 22 or newer for all users first, from nodejs.org or with
+`winget install OpenJS.NodeJS.LTS --scope machine`. Not `nvm`, which installs
+into the profile of whoever ran it: the service runs as its own account and
+cannot read another account's files.
+
+Then download the release and extract it, from an **elevated** PowerShell:
 
 ```powershell
-git clone https://github.com/FredrikHillbert/nexus
-cd nexus
-.\apps\nexus\scripts\assemble.ps1 -Destination C:\Nexus
+$v = "1.4.0"
+$ProgressPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest -UseBasicParsing -OutFile "$env:TEMP\nexus.zip" `
+  "https://github.com/FredrikHillbert/nexus/releases/download/v$v/nexus-windows-x64-$v.zip"
+Expand-Archive "$env:TEMP\nexus.zip" -DestinationPath C:\ -Force
+Get-ChildItem -Recurse C:\Nexus | Unblock-File
 ```
 
-That builds `nexus.exe`, the API, the web app and the auth bundles, downloads a
-pinned PostgreSQL 18 with its checksum checked, and lays them out as
-`nexus.exe` with `bin\`, `web\`, `auth\` and `pgsql\` beside it. Copy that
-folder to the server, somewhere every account can read — `C:\Program
-Files\Nexus` or `C:\Nexus`. Never inside a user profile: the service runs as
-its own account and cannot read another account's files, and `install` refuses
-such a path rather than letting it fail later.
+`$v` is pinned rather than resolved, so you know which build you installed;
+the current one is on the
+[releases page](https://github.com/FredrikHillbert/nexus/releases).
 
-Then, from an **elevated** PowerShell on the server:
+The zip carries its own `Nexus` folder, so this lands in `C:\Nexus`: `nexus.exe`
+with `bin\`, `web\`, `auth\` and PostgreSQL 18 in `pgsql\` beside it. Put it
+anywhere every account can read, but never inside a user profile — `install`
+refuses such a path rather than letting the service fail later. `Unblock-File`
+clears the mark of the web, without which SmartScreen blocks an unsigned
+executable.
+
+Still in that elevated console:
 
 ```powershell
 C:\Nexus\nexus.exe install --url https://nexus.example.com
@@ -196,6 +207,22 @@ The service runs as an unprivileged virtual account deliberately: PostgreSQL
 refuses to run with administrator rights at all. That is also why `nexus run`
 fails in an elevated console while `nexus install` requires one — install talks
 to the service manager, running does not.
+
+#### Building it yourself instead
+
+A release is assembled by one script, so a fork, an unreleased commit, or an
+audit of what you are actually running needs no more than Rust and Node on a
+build machine:
+
+```powershell
+git clone https://github.com/FredrikHillbert/nexus
+cd nexus
+.\apps\nexus\scripts\assemble.ps1 -Destination C:\Nexus
+```
+
+That builds `nexus.exe`, the API, the web app and the auth bundles, downloads
+the same pinned PostgreSQL 18 with its checksum checked, and lays the folder
+out exactly as the zip does. Copy it to the server and install it as above.
 
 #### Putting it on the network
 
@@ -230,7 +257,7 @@ Stop-Service Nexus          # PostgreSQL checkpoints first; allow up to a minute
 Get-Content "C:\ProgramData\Nexus\logs\nexus.$(Get-Date -Format yyyy-MM-dd).log" -Tail 50 -Wait
 ```
 
-To upgrade: assemble the new version, `Stop-Service Nexus`, replace the program
+To upgrade: download the new zip, `Stop-Service Nexus`, replace the program
 folder, `Start-Service Nexus`. Settings and data live in `%ProgramData%` and are
 untouched. `nexus uninstall` removes the service and keeps both; delete
 `C:\ProgramData\Nexus` to remove them too.
