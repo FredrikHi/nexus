@@ -81,7 +81,7 @@ an end, and a reason you did not have to write down.
 The recommended way to run this is the prebuilt images:
 
 ```bash
-docker pull ghcr.io/fredrikhillbert/nexus-web:latest
+docker pull ghcr.io/fredrikhi/nexus-web:latest
 ```
 
 On a Windows server with no Docker, `nexus.exe` runs the same stack as a single
