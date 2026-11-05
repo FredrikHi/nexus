@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   auth:
-    image: ghcr.io/fredrikhillbert/nexus-auth:${IMAGE_TAG:-latest}
+    image: ghcr.io/fredrikhi/nexus-auth:${IMAGE_TAG:-latest}
     environment:
       # Identity keeps its own schema of this database, created on first boot.
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/integration_observability
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/fredrikhillbert/nexus-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/fredrikhi/nexus-api:${IMAGE_TAG:-latest}
     environment:
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/integration_observability
       HOST: 0.0.0.0
@@ -66,7 +66,7 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/fredrikhillbert/nexus-web:${IMAGE_TAG:-latest}
+    image: ghcr.io/fredrikhi/nexus-web:${IMAGE_TAG:-latest}
     # The only service that needs a public address. It serves the app and
     # reverse-proxies /api/v1 and /api/auth to the two above, so the browser
     # sees one origin and there is one domain to configure.
