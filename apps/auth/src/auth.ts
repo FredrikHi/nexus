@@ -113,6 +113,13 @@ export const auth = betterAuth({
   // AUTH_TRUSTED_ORIGINS adds to it, for a second domain or a native client.
   trustedOrigins,
 
+  // Rate limiting keys on the client IP. nginx resolves it (real_ip) and sets
+  // X-Real-IP to a single address; X-Forwarded-For is a chain the client can
+  // prepend to, which Better Auth rightly refuses, leaving one shared bucket.
+  advanced: {
+    ipAddress: { ipAddressHeaders: ["x-real-ip"] },
+  },
+
   plugins: [
     jwt({
       jwt: {

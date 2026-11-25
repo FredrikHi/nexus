@@ -102,6 +102,10 @@ EOF
 docker compose -f docker-compose.production.yml up -d
 ```
 
+The web container listens on `127.0.0.1:8080` only, never on a public
+interface: sign-in must not travel in clear text. Put a TLS proxy on the host
+(Caddy, nginx) in front of it for `APP_URL`, or reach it through an SSH tunnel.
+
 Nothing is built and nothing is cloned: three images are pulled, Postgres comes
 up beside them, and both application services apply their own schema on first
 boot. Open `APP_URL`, create an account, create an organization.
@@ -119,12 +123,13 @@ A private repository needs a GitHub App source connected first; a public one
 needs only its URL.
 
 Also set `WEB_PORT` to something nothing else on that host is using. The
-compose file publishes a host port so a plain `docker compose up` on a bare
-VPS works, but on a server already running other things the default collides
-and the deploy fails with `Bind for 0.0.0.0:8080 failed: port is already
-allocated`. Coolify's proxy reaches the container over the Docker network, so
-that published port is only there for direct access and you can drop the
-`ports:` entry once the domain is attached.
+compose file publishes a loopback-only host port for a proxy or SSH tunnel on
+the same host, and on a server already running other things the default
+collides and the deploy fails with `Bind for 127.0.0.1:8080 failed: port is
+already allocated`. Coolify's proxy reaches the container over the Docker
+network, so you can drop the `ports:` entry once the domain is attached. Do
+not widen it to all interfaces: that serves sign-in over plain http on the
+server's IP, around TLS.
 
 ### Image visibility
 
@@ -291,7 +296,7 @@ Three matter. Everything else has a working default.
 | `AUTH_SECRET` | none, required | Signs sessions and tokens. Changing it signs everyone out. |
 | `POSTGRES_PASSWORD` | none, required | |
 | `IMAGE_TAG` | `latest` | Pin a release instead of tracking latest. |
-| `WEB_PORT` | `8080` | Host port the web container publishes on. Change it if something already holds that port. |
+| `WEB_PORT` | `8080` | Loopback host port (`127.0.0.1`) the web container publishes on, for a proxy or tunnel on the host. Change it if something already holds that port. |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | empty | Google sign-in appears only when both are set. Redirect URI is `<APP_URL>/api/auth/callback/google`. |
 | `TELEMETRY_RETENTION_DAYS` | `90` | Older telemetry has its whole monthly partition dropped. |
 | `HEALTH_EVAL_INTERVAL_SECONDS` | `60` | How often health is re-derived. |

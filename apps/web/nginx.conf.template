@@ -17,6 +17,18 @@ server {
   # config load instead, and nginx refuses to start if it cannot be found.
   resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
 
+  # TLS ends at the platform's proxy, so $remote_addr is that proxy, not the
+  # client. Take the client from X-Forwarded-For, trusting only hops on private
+  # networks; X-Real-IP below then carries the real client, which is what auth
+  # rate-limits on. A public client cannot forge it: its own address is public.
+  # ponytail: all private ranges, narrow to the proxy network's subnet if a
+  # client ever connects from a private address.
+  set_real_ip_from 10.0.0.0/8;
+  set_real_ip_from 172.16.0.0/12;
+  set_real_ip_from 192.168.0.0/16;
+  real_ip_header X-Forwarded-For;
+  real_ip_recursive on;
+
   # Coolify's container healthcheck hits this; it must not touch a backend.
   location = /healthz {
     access_log off;
